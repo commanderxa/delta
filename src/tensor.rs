@@ -431,7 +431,7 @@ impl Tensor {
     /// Computes the gradients of all the tensors that have been interacting and
     /// have `requires_grad` set to `true`.
     pub fn backward(&self) {
-        let end_grad = self.inner.borrow()._prev[0]
+        let end_grad: Vec<f64> = self.inner.borrow()._prev[0]
             .item()
             .iter()
             .map(|a| a * 2.0)

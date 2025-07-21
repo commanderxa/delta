@@ -68,6 +68,10 @@ impl<T> Dataloader<T> {
     pub fn is_shuffle(&self) -> bool {
         self.0.borrow().shuffle
     }
+
+    pub fn len(&self) -> usize {
+        self.0.borrow().dataset.len()
+    }
 }
 
 impl<T> Iterator for Dataloader<T> {

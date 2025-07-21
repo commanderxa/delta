@@ -7,7 +7,7 @@ use cognius::{
 
 fn main() {
     let epochs = 10;
-    let criterion = MSELoss::new();
+    let criterion = MSELoss::new(None);
     let mlp = MLP::new([1, 1]);
     let optim = SGD::new(mlp.parameters(), 3e-3);
 

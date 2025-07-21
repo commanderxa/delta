@@ -118,7 +118,26 @@ impl Backward for Op {
                 t._prev[0].add_to_grad(dx);
             }
 
-            Op::MSE => {
+            Op::Softmax(x, _) => {
+                let t = tensor.inner.borrow();
+                let n = x.length();
+                let s = x.item();
+                let mut jacobian = vec![0.0; n * n];
+                for i in 0..n {
+                    for j in 0..n {
+                        if i == j {
+                            jacobian[i * j] = s[i] * (1.0 - s[i]);
+                        } else {
+                            jacobian[i * j] = -s[i] * s[j];
+                        }
+                    }
+                }
+                let a = Tensor::tensor(&jacobian, &[n, n]).t();
+                t._prev[0].add_to_grad(a.item());
+            }
+
+            Op::MSE(n) => {
+                let n = *n as f64;
                 let t = tensor.inner.borrow();
                 let t_prev = t._prev[0].inner.borrow();
                 let t_sub = t_prev._prev[0].inner.borrow();
@@ -127,7 +146,7 @@ impl Backward for Op {
                 let grad = out
                     .iter()
                     .zip(target)
-                    .map(|(x, y)| 2.0 * (x - y))
+                    .map(|(x, y)| 2.0 / n * (x - y))
                     .collect::<Vec<f64>>();
                 drop(t_sub);
                 drop(t_prev);
