@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use cognius::{linalg, Tensor};
+    use athena::{linalg, Tensor};
 
     #[test]
     /// Matrix multiplication
@@ -68,7 +68,7 @@ mod tests {
             ],
             &[3, 1, 3, 1, 2, 3],
         );
-        let c = cognius::linalg::cross(a.clone(), b.clone());
+        let c = athena::linalg::cross(a.clone(), b.clone());
         let correct = vec![
             -0.5866, 1.0262, -0.4396, -1.9130, -0.8710, 2.7839, -0.5866, 1.0262, -0.4396, -1.9130,
             -0.8710, 2.7839, 0.8525, 0.7091, -1.5616, -1.0111, 3.0523, -2.0412, 0.8525, 0.7091,

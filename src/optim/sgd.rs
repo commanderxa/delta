@@ -9,6 +9,7 @@ use super::Optim;
 /// It has:
 /// - parameters of the model
 /// - learning rate
+#[derive(Clone)]
 pub struct SGD {
     parameters: Vec<Tensor>,
     lr: f64,
@@ -56,5 +57,9 @@ impl Optim for SGD {
         for i in 0..self.parameters.len() {
             self.parameters[i].inner.borrow_mut().zero_grad();
         }
+    }
+
+    fn change_lr(&mut self, gamma: f64) {
+        self.lr *= gamma
     }
 }

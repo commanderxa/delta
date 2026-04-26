@@ -1,4 +1,4 @@
-use cognius::{
+use athena::{
     module::Forward,
     nn::{functional as F, Linear},
     Tensor,

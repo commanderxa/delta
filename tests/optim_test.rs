@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use cognius::{
+    use athena::{
         module::{Forward, Module},
         nn::{self, functional as F, Linear},
         optim::{Optim, SGD},
@@ -27,7 +27,7 @@ mod tests {
         let mlp = MLP::new([4, 2, 4, 2, 1]);
         let optim = SGD::new(mlp.parameters(), 1e-1);
         let x = Tensor::randn(&[10, 4]);
-        let criterion = nn::MSELoss::new();
+        let criterion = nn::MSELoss::new(None);
 
         let mut out = mlp.forward(x.clone());
         out = out.squeeze(&[]);

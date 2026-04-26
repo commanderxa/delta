@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{seq::SliceRandom, rng};
 
 use super::dataset::Dataset;
 
@@ -26,7 +26,7 @@ impl<T> DataloaderInner<T> {
 
     /// Mix the indices up to obtain random sequence
     fn shuffle_indices(&mut self) {
-        self.indices.shuffle(&mut thread_rng());
+        self.indices.shuffle(&mut rng());
     }
 }
 
@@ -48,7 +48,7 @@ impl<T> Dataloader<T> {
         }
         // shuffle all indices if it is specified so
         if shuffle {
-            indices.shuffle(&mut thread_rng());
+            indices.shuffle(&mut rng());
         }
         Self(Rc::new(RefCell::new(DataloaderInner {
             dataset,
@@ -67,6 +67,10 @@ impl<T> Dataloader<T> {
     /// Indicates whether data was shuffled
     pub fn is_shuffle(&self) -> bool {
         self.0.borrow().shuffle
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.borrow().dataset.len()
     }
 }
 

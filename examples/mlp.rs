@@ -1,4 +1,4 @@
-use cognius::{
+use athena::{
     module::{Forward, Module},
     nn::{functional as F, Linear, MSELoss},
     optim::{Optim, SGD},
@@ -7,9 +7,9 @@ use cognius::{
 
 fn main() {
     let epochs = 10;
-    let criterion = MSELoss::new();
-    let mlp = MLP::new([2, 1]);
-    let optim = SGD::new(mlp.parameters(), 3e-1);
+    let criterion = MSELoss::new(None);
+    let mlp = MLP::new([2, 16, 1]);
+    let optim = SGD::new(mlp.parameters(), 3e-3);
 
     let data = vec![
         Tensor::tensor(&[9., 3.], &[2]),
@@ -76,17 +76,18 @@ fn main() {
         );
         loss.backward();
     }
-    println!("MODEL: {:?}", mlp.parameters());
 }
 
 struct MLP {
     linear: Linear,
+    linear1: Linear,
 }
 
 impl MLP {
-    pub fn new(features: [usize; 2]) -> Self {
+    pub fn new(features: [usize; 3]) -> Self {
         Self {
             linear: Linear::new(features[0], features[1]),
+            linear1: Linear::new(features[1], features[2]),
         }
     }
 }
@@ -97,7 +98,8 @@ impl Module for MLP {
     }
 
     fn parameters(&self) -> Vec<Tensor> {
-        let parameters = self.linear.parameters();
+        let mut parameters = self.linear.parameters();
+        parameters.append(&mut self.linear1.parameters());
         parameters
     }
 }
@@ -105,6 +107,8 @@ impl Module for MLP {
 impl Forward for MLP {
     fn forward(&self, x: Tensor) -> Tensor {
         let x = self.linear.forward(x);
+        let x = F::relu(x);
+        let x = self.linear1.forward(x);
         F::sigmoid(x)
     }
 }

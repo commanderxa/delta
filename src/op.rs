@@ -13,7 +13,8 @@ pub enum Op {
     Cross,
     ReLU,
     Sigmoid(Tensor),
-    MSE,
+    Softmax(Tensor, usize),
+    MSE(usize),
 }
 
 impl std::fmt::Display for Op {
@@ -28,7 +29,8 @@ impl std::fmt::Display for Op {
             Op::Cross => write!(f, "Cross"),
             Op::ReLU => write!(f, "ReLU"),
             Op::Sigmoid(n) => write!(f, "Sigmoid({n})"),
-            Op::MSE => write!(f, "MSE"),
+            Op::Softmax(n, dim) => write!(f, "Softmax({n},{dim})"),
+            Op::MSE(n) => write!(f, "MSE({n})"),
         }
     }
 }
