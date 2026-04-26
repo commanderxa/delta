@@ -1,4 +1,4 @@
-use cognius::{
+use athena::{
     module::{Forward, Module},
     nn::{Linear, MSELoss},
     optim::{Optim, SGD},

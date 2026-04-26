@@ -1,10 +1,10 @@
-# COGNIUS
+# ATHENA
 
 A pure `Rust` implementation of `micrograd`.
 
 ## Requirements
 
-Rust >= 1.73
+Rust >= 1.95
 
 ## Usage
 

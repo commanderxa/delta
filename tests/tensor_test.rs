@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use cognius::{randn, Tensor};
+    use athena::{randn, Tensor};
 
     #[test]
     /// Valid shape of the tensor

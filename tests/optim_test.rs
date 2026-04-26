@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use cognius::{
+    use athena::{
         module::{Forward, Module},
         nn::{self, functional as F, Linear},
         optim::{Optim, SGD},

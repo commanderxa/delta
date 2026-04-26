@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use cognius::{
+    use athena::{
         data::{dataloader::Dataloader, dataset::Dataset, sample::Sample},
         Tensor,
     };

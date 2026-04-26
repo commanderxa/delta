@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use cognius::{nn::functional as F, Tensor};
+    use athena::{nn::functional as F, Tensor};
 
     #[test]
     fn sigmoid() {

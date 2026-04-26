@@ -6,8 +6,6 @@ use std::{
     rc::Rc,
 };
 
-use rand::Rng;
-
 use crate::{backward::Backward, op::Op, tensor_data::TensorData};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -140,7 +138,7 @@ impl Tensor {
     /// between -1 and 1.
     fn fill_tensor(tensor: &mut TensorData, range: Range<f64>) {
         for i in 0..tensor.data.len() {
-            let data = rand::thread_rng().gen_range(range.clone());
+            let data = rand::random_range(range.clone());
             tensor.data[i] = data;
             tensor.grad.as_mut().unwrap().push(0.0);
         }
@@ -232,7 +230,9 @@ impl Tensor {
         );
         let mut t = self.clone();
         if self.stride.iter().product::<usize>() == 0 {
-            panic!("view size is not compatible with size and stride of input tensor. Use .reshape(...) instead");
+            panic!(
+                "view size is not compatible with size and stride of input tensor. Use .reshape(...) instead"
+            );
         }
         let mut stride = vec![1; shape.len()];
         // compute stride
@@ -358,7 +358,12 @@ impl Tensor {
     ///
     /// Takes new shape.
     pub fn expand(&self, new_shape: &[usize]) -> Self {
-        assert!(self.shape().len() <= new_shape.len(), "The number of sizes provided ({:?}) must be equal or greater than the number of sizes in the tensor ({:?})", self.shape().len(), new_shape.len());
+        assert!(
+            self.shape().len() <= new_shape.len(),
+            "The number of sizes provided ({:?}) must be equal or greater than the number of sizes in the tensor ({:?})",
+            self.shape().len(),
+            new_shape.len()
+        );
         let mut t = self.clone();
         let mut _old_shape = self.shape();
         // check if batch dims have to be added in th front
@@ -374,7 +379,7 @@ impl Tensor {
         for i in (0..new_shape.len()).rev() {
             assert!(
                 old_shape[i] == new_shape[i] || (old_shape[i] == 1),
-                "The expanded size of the tensor ({}) must match the existing size ({}) at dimension ({})", 
+                "The expanded size of the tensor ({}) must match the existing size ({}) at dimension ({})",
                 new_shape[i],
                 old_shape[i],
                 i,
