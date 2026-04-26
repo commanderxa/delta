@@ -112,7 +112,7 @@ impl Backward for Op {
             Op::Sigmoid(x) => {
                 let t = tensor.inner.borrow();
                 let e_x = (-x.clone()).exp();
-                let res = e_x.clone() / (e_x + 1.0).pow(2);
+                let res = e_x.clone() / (e_x + 1.0 as f64).pow(2);
                 let grad = t.grad.clone().unwrap();
                 let dx = grad.iter().zip(res.item()).map(|(a, b)| a * b).collect();
                 t._prev[0].add_to_grad(dx);
@@ -137,20 +137,13 @@ impl Backward for Op {
             }
 
             Op::MSE(n) => {
-                let n = *n as f64;
                 let t = tensor.inner.borrow();
                 let t_prev = t._prev[0].inner.borrow();
                 let t_sub = t_prev._prev[0].inner.borrow();
-                let out = t_sub._prev[0].item();
-                let target = t_sub._prev[1].item();
-                let grad = out
-                    .iter()
-                    .zip(target)
-                    .map(|(x, y)| 2.0 / n * (x - y))
-                    .collect::<Vec<f64>>();
+                let grad = (t_sub._prev[0].clone() - t_sub._prev[1].clone()) * n.to_owned();
                 drop(t_sub);
                 drop(t_prev);
-                t._prev[0].add_to_grad(grad);
+                t._prev[0].add_to_grad(grad.item());
             }
         }
     }

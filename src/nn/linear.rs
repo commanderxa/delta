@@ -1,7 +1,6 @@
 use crate::{
-    linalg,
+    Tensor, linalg,
     module::{Forward, Module},
-    Tensor,
 };
 
 /// # `Linear` Layer
@@ -17,22 +16,15 @@ use crate::{
 /// - `b` is bias
 pub struct Linear {
     pub weight: Tensor,
-    bias: Option<Tensor>,
 }
 
 impl Linear {
-    pub fn new(in_features: usize, out_features: usize) -> Self {
-        let _weight = Tensor::randn(&[in_features, out_features]);
-        let _bias = Tensor::randn(&[out_features, 1]);
-        Self {
-            weight: _weight,
-            bias: None,
+    pub fn new(mut in_features: usize, out_features: usize, bias: bool) -> Self {
+        if bias {
+            in_features += 1;
         }
-    }
-
-    pub fn no_bias(mut self) -> Self {
-        self.bias = None;
-        self
+        let _weight = Tensor::randn(&[in_features, out_features]);
+        Self { weight: _weight }
     }
 }
 
@@ -42,10 +34,7 @@ impl Module for Linear {
     }
 
     fn parameters(&self) -> Vec<Tensor> {
-        let mut parameters = vec![self.weight.clone()];
-        if let Some(b) = self.bias.clone() {
-            parameters.push(b);
-        }
+        let parameters = vec![self.weight.clone()];
         parameters
     }
 }
@@ -53,11 +42,11 @@ impl Module for Linear {
 impl Forward for Linear {
     fn forward(&self, x: Tensor) -> Tensor {
         let weight = self.weight.clone();
-        let bias = self.bias.clone();
-        let mut x = linalg::matmul(x, weight);
-        if let Some(b) = bias {
-            x = x + b;
-        }
+        let mut ones_shape = x.shape();
+        let _ = ones_shape.pop();
+        ones_shape.push(1);
+        let x = Tensor::cat(&[x, Tensor::ones(&ones_shape)], 1);
+        let x = linalg::matmul(x, weight);
         x
     }
 }

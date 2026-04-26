@@ -105,7 +105,7 @@ mod tests {
     fn mul_scalar_2d() {
         let a = Tensor::arange(1., 11., 1.0);
         let a = a.reshape(&[2, 5]);
-        let b = 5;
+        let b = 5 as i32;
         let c = a * b;
         assert_eq!(
             c.storage(),
@@ -117,7 +117,7 @@ mod tests {
     fn mul_scalar_3d() {
         let a = Tensor::arange(1., 13., 1.0);
         let a = a.reshape(&[2, 2, 3]);
-        let b = 5;
+        let b: i32 = 5;
         let c = a * b;
         assert_eq!(
             c.storage(),
@@ -153,7 +153,7 @@ mod tests {
     fn div_scalar_2d() {
         let a = Tensor::arange(1., 61., 10.);
         let a = a.reshape(&[2, 3]);
-        let b = 5;
+        let b: i32 = 5;
         let c = a / b;
         assert_eq!(c.storage(), vec![0.2, 2.2, 4.2, 6.2, 8.2, 10.2]);
     }
@@ -162,7 +162,7 @@ mod tests {
     fn div_scalar_3d() {
         let a = Tensor::arange(1., 13., 1.);
         let a = a.reshape(&[2, 2, 3]);
-        let b = 5;
+        let b: i32 = 5;
         let c = a / b;
         assert_eq!(
             c.storage(),
@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn add_scalar_3d() {
         let a = Tensor::arange(1., 9., 1.0).reshape(&[2, 2, 2]);
-        let b = 2.0;
+        let b: f32 = 2.0;
         let c = a + b;
         assert_eq!(c.storage(), vec![3., 4., 5., 6., 7., 8., 9., 10.0]);
     }
@@ -241,7 +241,7 @@ mod tests {
     #[test]
     fn sub_scalar_3d() {
         let a = Tensor::arange(1., 9., 1.).reshape(&[2, 2, 2]);
-        let b = 2.;
+        let b: f32 = 2.;
         let c = a - b;
         assert_eq!(c.storage(), vec![-1., 0., 1., 2., 3., 4., 5., 6.]);
     }

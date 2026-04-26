@@ -11,7 +11,7 @@ pub fn relu(x: Tensor) -> Tensor {
 }
 
 pub fn sigmoid(x: Tensor) -> Tensor {
-    let data = ((-x.clone()).exp() + 1.0).pow(-1);
+    let data = ((-x.clone()).exp() + 1.0 as f64).pow(-1);
     let inner = TensorData::from_op(data.item(), vec![x.clone()], Op::Sigmoid(x));
     Tensor::new(inner, &data.shape)
 }

@@ -6,10 +6,10 @@ use athena::{
 };
 
 fn main() {
-    let epochs = 10;
-    let criterion = MSELoss::new(None);
+    let epochs = 100;
+    let criterion = MSELoss::default();
     let mlp = MLP::new([1, 1]);
-    let optim = SGD::new(mlp.parameters(), 3e-3);
+    let optim = SGD::new(mlp.parameters(), 3e-2);
 
     let data = vec![
         Tensor::tensor(&[1.], &[1, 1]),
@@ -95,7 +95,7 @@ struct MLP {
 impl MLP {
     pub fn new(features: [usize; 2]) -> Self {
         Self {
-            linear1: Linear::new(features[0], features[1]),
+            linear1: Linear::new(features[0], features[1], true),
         }
     }
 }

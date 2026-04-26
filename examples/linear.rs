@@ -5,7 +5,7 @@ use athena::{
 };
 
 fn main() {
-    let linear = Linear::new(20, 10);
+    let linear = Linear::new(20, 10, true);
     let x = Tensor::randn(&[2, 20]);
     println!("Weights: {}", linear.weight);
     println!("IN:\n{x}");

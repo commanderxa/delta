@@ -1,10 +1,11 @@
 #[cfg(test)]
 mod tests {
     use athena::{
+        Tensor,
         module::{Forward, Module},
-        nn::{self, functional as F, Linear},
+        nn::{self, Linear, functional as F},
         optim::{Optim, SGD},
-        tensor, Tensor,
+        tensor,
     };
 
     #[test]
@@ -24,10 +25,12 @@ mod tests {
 
     #[test]
     fn optim_step() {
-        let mlp = MLP::new([4, 2, 4, 2, 1]);
+        let mlp = MLP::new([4, 1]);
         let optim = SGD::new(mlp.parameters(), 1e-1);
+        optim.zero_grad();
+
         let x = Tensor::randn(&[10, 4]);
-        let criterion = nn::MSELoss::new(None);
+        let criterion = nn::MSELoss::default();
 
         let mut out = mlp.forward(x.clone());
         out = out.squeeze(&[]);
@@ -36,7 +39,6 @@ mod tests {
             tensor::Tensor::tensor(&[1., 0., 1., 0., 1., 0., 1., 1., 0., 1.], &[10]),
         );
 
-        optim.zero_grad();
         loss.backward();
 
         let old_data = mlp
@@ -64,18 +66,12 @@ mod tests {
 
     struct MLP {
         linear1: Linear,
-        linear2: Linear,
-        linear3: Linear,
-        linear4: Linear,
     }
 
     impl MLP {
-        pub fn new(features: [usize; 5]) -> Self {
+        pub fn new(features: [usize; 2]) -> Self {
             Self {
-                linear1: Linear::new(features[0], features[1]),
-                linear2: Linear::new(features[1], features[2]),
-                linear3: Linear::new(features[2], features[3]),
-                linear4: Linear::new(features[3], features[4]),
+                linear1: Linear::new(features[0], features[1], true),
             }
         }
     }
@@ -86,10 +82,7 @@ mod tests {
         }
 
         fn parameters(&self) -> Vec<Tensor> {
-            let mut parameters = self.linear1.parameters();
-            parameters.append(&mut self.linear2.parameters());
-            parameters.append(&mut self.linear3.parameters());
-            parameters.append(&mut self.linear4.parameters());
+            let parameters = self.linear1.parameters();
             parameters
         }
     }
@@ -97,9 +90,6 @@ mod tests {
     impl Forward for MLP {
         fn forward(&self, x: Tensor) -> Tensor {
             let x = self.linear1.forward(x);
-            let x = self.linear2.forward(x);
-            let x = self.linear3.forward(x);
-            let x = self.linear4.forward(x);
             F::sigmoid(x)
         }
     }

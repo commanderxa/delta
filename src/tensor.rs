@@ -439,7 +439,7 @@ impl Tensor {
         let end_grad: Vec<f64> = self.inner.borrow()._prev[0]
             .item()
             .iter()
-            .map(|a| a * 2.0)
+            .map(|a| a.to_owned())
             .collect::<Vec<f64>>();
         self.add_to_grad(end_grad);
         self._backward()
@@ -623,6 +623,61 @@ impl Tensor {
         result.push(']');
         result
     }
+
+    /// Concatenates a slice of tensors along the given dimension.
+    /// All tensors must have the same shape except in the `dim` axis.
+    pub fn cat(tensors: &[Tensor], dim: usize) -> Self {
+        assert!(!tensors.is_empty(), "cat: need at least one tensor");
+
+        let ndim = tensors[0].shape.len();
+        assert!(
+            dim < ndim,
+            "cat: dim {} out of range for {}-D tensor",
+            dim,
+            ndim
+        );
+
+        // Validate all shapes match except on `dim`
+        for t in tensors.iter().skip(1) {
+            assert_eq!(
+                t.shape.len(),
+                ndim,
+                "cat: all tensors must have same number of dims"
+            );
+            for d in 0..ndim {
+                if d != dim {
+                    assert_eq!(
+                        t.shape[d], tensors[0].shape[d],
+                        "cat: shape mismatch on dim {}",
+                        d
+                    );
+                }
+            }
+        }
+
+        // Compute output shape
+        let mut out_shape = tensors[0].shape.clone();
+        out_shape[dim] = tensors.iter().map(|t| t.shape[dim]).sum();
+
+        // Collect contiguous data from each tensor
+        let mut data = Vec::with_capacity(out_shape.iter().product());
+
+        // Iterate over all positions except `dim`, then gather slices
+        let outer: usize = out_shape[..dim].iter().product();
+        let inner: usize = out_shape[dim + 1..].iter().product();
+
+        for o in 0..outer {
+            for t in tensors {
+                let slice_len = t.shape[dim] * inner;
+                let offset = o * slice_len;
+                let items = t.item();
+                data.extend_from_slice(&items[offset..offset + slice_len]);
+            }
+        }
+
+        let inner_data = TensorData::from_f64(data);
+        Tensor::new(inner_data, &out_shape)
+    }
 }
 
 impl Add for Tensor {
@@ -630,66 +685,6 @@ impl Add for Tensor {
 
     fn add(self, rhs: Self) -> Self::Output {
         Self::multicast_op(self, rhs, Op::Add)
-    }
-}
-
-impl Add<i64> for Tensor {
-    type Output = Tensor;
-
-    fn add(self, rhs: i64) -> Self::Output {
-        for i in 0..self.length() {
-            self.inner.borrow_mut().data[i] += rhs as f64;
-        }
-        self
-    }
-}
-
-impl Add<f64> for Tensor {
-    type Output = Tensor;
-
-    fn add(self, rhs: f64) -> Self::Output {
-        for i in 0..self.length() {
-            self.inner.borrow_mut().data[i] += rhs;
-        }
-        self
-    }
-}
-
-impl Mul for Tensor {
-    type Output = Tensor;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        Self::multicast_op(self, rhs, Op::Mul)
-    }
-}
-
-impl Mul<i64> for Tensor {
-    type Output = Tensor;
-
-    fn mul(self, rhs: i64) -> Self::Output {
-        for i in 0..self.length() {
-            self.inner.borrow_mut().data[i] *= rhs as f64;
-        }
-        self
-    }
-}
-
-impl Mul<f64> for Tensor {
-    type Output = Tensor;
-
-    fn mul(self, rhs: f64) -> Self::Output {
-        for i in 0..self.length() {
-            self.inner.borrow_mut().data[i] *= rhs;
-        }
-        self
-    }
-}
-
-impl Neg for Tensor {
-    type Output = Tensor;
-
-    fn neg(self) -> Self::Output {
-        self * -1.0
     }
 }
 
@@ -701,25 +696,11 @@ impl Sub for Tensor {
     }
 }
 
-impl Sub<i64> for Tensor {
+impl Mul for Tensor {
     type Output = Tensor;
 
-    fn sub(self, rhs: i64) -> Self::Output {
-        for i in 0..self.length() {
-            self.inner.borrow_mut().data[i] -= rhs as f64;
-        }
-        self
-    }
-}
-
-impl Sub<f64> for Tensor {
-    type Output = Tensor;
-
-    fn sub(self, rhs: f64) -> Self::Output {
-        for i in 0..self.length() {
-            self.inner.borrow_mut().data[i] -= rhs;
-        }
-        self
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::multicast_op(self, rhs, Op::Mul)
     }
 }
 
@@ -731,27 +712,34 @@ impl Div for Tensor {
     }
 }
 
-impl Div<i64> for Tensor {
+impl Neg for Tensor {
     type Output = Tensor;
 
-    fn div(self, rhs: i64) -> Self::Output {
-        for i in 0..self.length() {
-            self.inner.borrow_mut().data[i] /= rhs as f64;
-        }
-        self
+    fn neg(self) -> Self::Output {
+        self * -1.0
     }
 }
 
-impl Div<f64> for Tensor {
-    type Output = Tensor;
-
-    fn div(self, rhs: f64) -> Self::Output {
-        for i in 0..self.length() {
-            self.inner.borrow_mut().data[i] /= rhs;
-        }
-        self
-    }
+macro_rules! impl_scalar_op {
+    ($trait:ident, $method:ident, $op:tt, $($t:ty),+) => {
+        $(
+            impl $trait<$t> for Tensor {
+                type Output = Tensor;
+                fn $method(self, rhs: $t) -> Self::Output {
+                    for i in 0..self.length() {
+                        self.inner.borrow_mut().data[i] $op rhs as f64;
+                    }
+                    self
+                }
+            }
+        )+
+    };
 }
+
+impl_scalar_op!(Add, add, +=, i32, i64, f32, f64, usize);
+impl_scalar_op!(Sub, sub, -=, i32, i64, f32, f64, usize);
+impl_scalar_op!(Mul, mul, *=, i32, i64, f32, f64, usize);
+impl_scalar_op!(Div, div, /=, i32, i64, f32, f64, usize);
 
 impl Display for Tensor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
