@@ -754,6 +754,62 @@ impl Display for Tensor {
 // MACROS
 
 #[macro_export]
+#[doc(hidden)]
+macro_rules! __tensor_shape {
+    ( [ $( $elem:tt ),* $(,)? ] ) => {{
+        let mut shape = vec![0usize];
+        $(
+            let child = $crate::__tensor_shape!($elem);
+            if shape.len() == 1 {
+                shape.extend_from_slice(&child);
+            } else {
+                assert_eq!(
+                    &shape[1..],
+                    child.as_slice(),
+                    "tensor! rows must have consistent inner shapes"
+                );
+            }
+            shape[0] += 1;
+        )*
+        shape
+    }};
+    ( & [ $( $elem:tt ),* $(,)? ] ) => {
+        $crate::__tensor_shape!([ $( $elem ),* ])
+    };
+    ( $scalar:expr ) => {
+        Vec::<usize>::new()
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __tensor_flatten {
+    ( $out:ident ; [ $( $elem:tt ),* $(,)? ] ) => {{
+        $(
+            $crate::__tensor_flatten!($out ; $elem);
+        )*
+    }};
+    ( $out:ident ; & [ $( $elem:tt ),* $(,)? ] ) => {{
+        $(
+            $crate::__tensor_flatten!($out ; $elem);
+        )*
+    }};
+    ( $out:ident ; $scalar:expr ) => {{
+        $out.push(($scalar) as f64);
+    }};
+}
+
+#[macro_export]
+macro_rules! tensor {
+    ($data:tt) => {{
+        let shape = $crate::__tensor_shape!($data);
+        let mut flat = Vec::new();
+        $crate::__tensor_flatten!(flat; $data);
+        $crate::Tensor::tensor(&flat, &shape)
+    }};
+}
+
+#[macro_export]
 macro_rules! randn {
     ($($element:expr),+) => {{
         use rand::Rng;
