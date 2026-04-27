@@ -3,7 +3,11 @@
   <img src="media/header.png" width="100%" alt="Project Header">
 </div>
 
-<div align="center">
+<br>
+
+<h1 align="left">The <b>ATHENA</b> Project</h1>
+
+<div align="left">
    <a href="https://github.com/commanderxa/athena">
       <img src="https://img.shields.io/badge/Rust-1.95.0%2B-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust 1.95.0+">
    </a>
@@ -22,8 +26,6 @@
 </div>
 
 <br>
-
-# The **ATHENA** Project
 
 A Deep Learning library implemented in pure `Rust`. It is inspired by [`micrograd`](https://github.com/karpathy/micrograd) project.
 
