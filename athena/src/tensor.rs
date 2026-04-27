@@ -192,6 +192,133 @@ impl Tensor {
         self
     }
 
+    pub fn sum(&self, dim: Option<usize>, keepdim: bool) -> Tensor {
+        match dim {
+            None => {
+                let value: f64 = self.item().iter().sum();
+                let shape = if keepdim {
+                    vec![1; self.shape.len().max(1)]
+                } else {
+                    vec![1]
+                };
+                let inner = TensorData::from_op(
+                    vec![value],
+                    vec![self.clone()],
+                    Op::Sum { dim: None, keepdim },
+                );
+                Tensor::new(inner, &shape)
+            }
+            Some(dim) => {
+                assert!(dim < self.shape.len(), "sum: dim out of range");
+
+                let input = self.item();
+                let outer: usize = self.shape[..dim].iter().product();
+                let reduce: usize = self.shape[dim];
+                let inner: usize = self.shape[dim + 1..].iter().product();
+
+                let mut out = vec![0.0; outer * inner];
+
+                for o in 0..outer {
+                    for i in 0..inner {
+                        let mut acc = 0.0;
+                        for r in 0..reduce {
+                            let idx = o * reduce * inner + r * inner + i;
+                            acc += input[idx];
+                        }
+                        out[o * inner + i] = acc;
+                    }
+                }
+
+                let mut out_shape = self.shape.clone();
+                if keepdim {
+                    out_shape[dim] = 1;
+                } else {
+                    out_shape.remove(dim);
+                    if out_shape.is_empty() {
+                        out_shape.push(1);
+                    }
+                }
+
+                let inner_data = TensorData::from_op(
+                    out,
+                    vec![self.clone()],
+                    Op::Sum {
+                        dim: Some(dim),
+                        keepdim,
+                    },
+                );
+                Tensor::new(inner_data, &out_shape)
+            }
+        }
+    }
+
+    pub fn mean(&self, dim: Option<usize>, keepdim: bool) -> Tensor {
+        match dim {
+            None => {
+                let n = self.length();
+                assert!(n > 0, "mean of empty tensor is undefined");
+                let value: f64 = self.item().iter().sum::<f64>() / n as f64;
+                let shape = if keepdim {
+                    vec![1; self.shape.len().max(1)]
+                } else {
+                    vec![1]
+                };
+                let inner = TensorData::from_op(
+                    vec![value],
+                    vec![self.clone()],
+                    Op::Mean {
+                        dim: None,
+                        keepdim,
+                        count: n,
+                    },
+                );
+                Tensor::new(inner, &shape)
+            }
+            Some(dim) => {
+                assert!(dim < self.shape.len(), "mean: dim out of range");
+
+                let input = self.item();
+                let outer: usize = self.shape[..dim].iter().product();
+                let reduce: usize = self.shape[dim];
+                let inner: usize = self.shape[dim + 1..].iter().product();
+
+                let mut out = vec![0.0; outer * inner];
+
+                for o in 0..outer {
+                    for i in 0..inner {
+                        let mut acc = 0.0;
+                        for r in 0..reduce {
+                            let idx = o * reduce * inner + r * inner + i;
+                            acc += input[idx];
+                        }
+                        out[o * inner + i] = acc / reduce as f64;
+                    }
+                }
+
+                let mut out_shape = self.shape.clone();
+                if keepdim {
+                    out_shape[dim] = 1;
+                } else {
+                    out_shape.remove(dim);
+                    if out_shape.is_empty() {
+                        out_shape.push(1);
+                    }
+                }
+
+                let inner_data = TensorData::from_op(
+                    out,
+                    vec![self.clone()],
+                    Op::Mean {
+                        dim: Some(dim),
+                        keepdim,
+                        count: reduce,
+                    },
+                );
+                Tensor::new(inner_data, &out_shape)
+            }
+        }
+    }
+
     /// Transpose
     ///
     /// This method transposes the tensor, it changes the shape.
@@ -436,12 +563,12 @@ impl Tensor {
     /// Computes the gradients of all the tensors that have been interacting and
     /// have `requires_grad` set to `true`.
     pub fn backward(&self) {
-        let end_grad: Vec<f64> = self.inner.borrow()._prev[0]
-            .item()
-            .iter()
-            .map(|a| a.to_owned())
-            .collect::<Vec<f64>>();
-        self.add_to_grad(end_grad);
+        assert!(
+            self.length() == 1,
+            "grad can be implicitly created only for scalar outputs"
+        );
+
+        self.add_to_grad(vec![1.0]);
         self._backward()
     }
 

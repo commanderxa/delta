@@ -7,6 +7,15 @@ pub enum Op {
     Add,
     Sub,
     Mul,
+    Sum {
+        dim: Option<usize>,
+        keepdim: bool,
+    },
+    Mean {
+        dim: Option<usize>,
+        keepdim: bool,
+        count: usize,
+    },
     Pow(i32),
     Exp(Tensor),
     MatMul,
@@ -23,6 +32,12 @@ impl std::fmt::Display for Op {
             Op::Add => write!(f, "Add"),
             Op::Sub => write!(f, "Sub"),
             Op::Mul => write!(f, "Mul"),
+            Op::Sum { dim: _, keepdim: _ } => write!(f, "Sum"),
+            Op::Mean {
+                dim: _,
+                keepdim: _,
+                count: _,
+            } => write!(f, "Mean"),
             Op::Pow(n) => write!(f, "Pow({n})"),
             Op::Exp(_) => write!(f, "Exp"),
             Op::MatMul => write!(f, "MatMul"),

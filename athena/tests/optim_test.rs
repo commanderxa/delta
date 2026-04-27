@@ -13,7 +13,7 @@ mod tests {
         let a = Tensor::tensor(&[1., 2., 3., 4., 5., 6.], &[2, 3]);
         let b = Tensor::ones(&[2, 3]);
         let optim = SGD::new(vec![a.clone(), b.clone()], 1e-3);
-        let c = a.clone() * b.clone();
+        let c = athena::sum(&(a.clone() * b.clone()), None, false);
         c.backward();
         assert_ne!(a.grad().unwrap().iter().sum::<f64>(), 0.0);
         assert_ne!(b.grad().unwrap().iter().sum::<f64>(), 0.0);

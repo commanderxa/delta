@@ -1,4 +1,4 @@
-use crate::{linalg, op::Op, tensor_data::TensorData, Tensor};
+use crate::{Tensor, linalg, op::Op, tensor_data::TensorData};
 
 /// Backward trait for backpropagation operation.
 pub trait Backward {
@@ -45,6 +45,69 @@ impl Backward for Op {
                         .collect(),
                 );
                 t._prev[1].add_to_grad(l_item.iter().zip(grad).map(|(a, b)| a * b).collect());
+            }
+
+            Op::Sum { dim, keepdim } => {
+                let t = tensor.inner.borrow();
+                let grad = t.grad.clone().unwrap();
+                let prev = &t._prev[0];
+                let prev_shape = prev.shape.clone();
+
+                let back = match dim {
+                    None => {
+                        vec![grad[0]; prev.length()]
+                    }
+                    Some(dim) => {
+                        let mut grad_tensor =
+                            Tensor::tensor(&grad, &tensor.shape).requires_grad(false);
+
+                        if !*keepdim {
+                            let mut shape = prev_shape.clone();
+                            shape[*dim] = 1;
+                            grad_tensor = grad_tensor.reshape(&shape);
+                        }
+
+                        grad_tensor.expand(&prev_shape).item()
+                    }
+                };
+
+                prev.add_to_grad(back);
+            }
+
+            Op::Mean {
+                dim,
+                keepdim,
+                count,
+            } => {
+                let t = tensor.inner.borrow();
+                let grad = t.grad.clone().unwrap();
+                let prev = &t._prev[0];
+                let prev_shape = prev.shape.clone();
+
+                let mut back = match dim {
+                    None => {
+                        vec![grad[0]; prev.length()]
+                    }
+                    Some(dim) => {
+                        let mut grad_tensor =
+                            Tensor::tensor(&grad, &tensor.shape).requires_grad(false);
+
+                        if !*keepdim {
+                            let mut shape = prev_shape.clone();
+                            shape[*dim] = 1;
+                            grad_tensor = grad_tensor.reshape(&shape);
+                        }
+
+                        grad_tensor.expand(&prev_shape).item()
+                    }
+                };
+
+                let scale = 1.0 / *count as f64;
+                for g in back.iter_mut() {
+                    *g *= scale;
+                }
+
+                prev.add_to_grad(back);
             }
 
             // Power backward
@@ -126,9 +189,9 @@ impl Backward for Op {
                 for i in 0..n {
                     for j in 0..n {
                         if i == j {
-                            jacobian[i * j] = s[i] * (1.0 - s[i]);
+                            jacobian[i * n + j] = s[i] * (1.0 - s[i]);
                         } else {
-                            jacobian[i * j] = -s[i] * s[j];
+                            jacobian[i * n + j] = -s[i] * s[j];
                         }
                     }
                 }
