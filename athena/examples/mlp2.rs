@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+
 use athena::{
-    module::{Forward, Module},
+    Tensor, ivalue,
+    ivalue::IValue,
+    nn::Module,
     nn::{Linear, MSELoss},
     optim::{Optim, SGD},
-    Tensor,
 };
 
 fn main() {
@@ -52,7 +55,8 @@ fn main() {
 
             let x = x.clone();
             let y = y.clone();
-            let out = mlp.forward(x.clone());
+            let (args, kwargs) = ivalue![[x.clone()]];
+            let out = mlp.forward(args, kwargs).unwrap_tensor();
             let loss = criterion.measure(out, y);
 
             loss.backward();
@@ -70,14 +74,16 @@ fn main() {
     let mut test_res = vec![];
 
     for (x, y) in data.iter().zip(targets.clone()) {
-        let out = mlp.forward(x.clone());
+        let (args, kwargs) = ivalue![[x.clone()]];
+        let out = mlp.forward(args, kwargs).unwrap_tensor();
         let loss = criterion.measure(out.clone(), y.clone());
         loss.backward();
         training_res.push((out.item()[0], y.item()[0]))
     }
 
     for (x, y) in test_data.iter().zip(test_targets.clone()) {
-        let out = mlp.forward(x.clone());
+        let (args, kwargs) = ivalue![[x.clone()]];
+        let out = mlp.forward(args, kwargs).unwrap_tensor();
         let loss = criterion.measure(out.clone(), y.clone());
         loss.backward();
         test_res.push((out.item()[0], y.item()[0]))
@@ -109,11 +115,8 @@ impl Module for MLP {
         let parameters = self.linear1.parameters();
         parameters
     }
-}
 
-impl Forward for MLP {
-    fn forward(&self, x: Tensor) -> Tensor {
-        let x = self.linear1.forward(x);
-        x
+    fn forward(&self, args: Vec<IValue>, kwargs: HashMap<String, IValue>) -> IValue {
+        self.linear1.forward(args, kwargs)
     }
 }

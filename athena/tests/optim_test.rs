@@ -1,9 +1,11 @@
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use athena::{
-        Tensor,
-        module::{Forward, Module},
-        nn::{self, Linear, functional as F},
+        Tensor, ivalue,
+        ivalue::IValue,
+        nn::{self, Linear, Module, functional as F},
         optim::{Optim, SGD},
         tensor,
     };
@@ -32,7 +34,8 @@ mod tests {
         let x = Tensor::randn(&[10, 4]);
         let criterion = nn::MSELoss::default();
 
-        let mut out = mlp.forward(x.clone());
+        let (args, kwargs) = ivalue![[x.clone()]];
+        let mut out = mlp.forward(args, kwargs).unwrap_tensor();
         out = out.squeeze(&[]);
         let loss = criterion.measure(
             out.clone(),
@@ -85,12 +88,10 @@ mod tests {
             let parameters = self.linear1.parameters();
             parameters
         }
-    }
 
-    impl Forward for MLP {
-        fn forward(&self, x: Tensor) -> Tensor {
-            let x = self.linear1.forward(x);
-            F::sigmoid(x)
+        fn forward(&self, args: Vec<IValue>, kwargs: HashMap<String, IValue>) -> IValue {
+            let x = self.linear1.forward(args, kwargs).unwrap_tensor();
+            IValue::Tensor(F::sigmoid(x))
         }
     }
 }

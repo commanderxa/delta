@@ -1,7 +1,9 @@
-use athena::module::Forward;
 use pyo3::prelude::*;
 
-use athena::nn::Linear;
+use athena::{
+    ivalue,
+    nn::{Linear, Module},
+};
 
 use crate::tensor::PyTensor;
 
@@ -21,13 +23,29 @@ impl PyLinear {
         })
     }
 
-    fn forward(&self, x: &PyTensor) -> PyTensor {
+    #[getter]
+    fn weights(&self) -> PyTensor {
         PyTensor {
-            inner: self.inner.forward(x.inner.clone()),
+            inner: self.inner.weights.clone(),
         }
     }
 
-    fn __call__(&self, x: &PyTensor) -> PyTensor {
+    fn forward(&self, x: PyRef<'_, PyTensor>) -> PyTensor {
+        let (args, kwargs) = ivalue![[x.inner.clone()]];
+        PyTensor {
+            inner: self.inner.forward(args, kwargs).unwrap_tensor(),
+        }
+    }
+
+    fn __call__(&self, x: PyRef<'_, PyTensor>) -> PyTensor {
         self.forward(x)
+    }
+
+    fn parameters(&self) -> Vec<PyTensor> {
+        self.inner
+            .parameters()
+            .into_iter()
+            .map(|t| PyTensor { inner: t })
+            .collect()
     }
 }

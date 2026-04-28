@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use athena::{
-    Tensor,
-    module::{Forward, Module},
-    nn::{Linear, MSELoss, functional as F},
+    Tensor, ivalue,
+    ivalue::IValue,
+    nn::{Linear, MSELoss, Module, functional as F},
     optim::{Optim, SGD},
 };
 
@@ -51,7 +53,8 @@ fn main() {
 
             let x = x.clone().unsqueeze(0);
             let y = y.clone();
-            let out = mlp.forward(x).squeeze(&[0]);
+            let (args, kwargs) = ivalue![[x]];
+            let out = mlp.forward(args, kwargs).unwrap_tensor().squeeze(&[0]);
             let loss = criterion.measure(out, y);
 
             loss.backward();
@@ -64,7 +67,8 @@ fn main() {
 
     for (x, y) in test_data.iter().zip(test_targets.clone()) {
         let x = x.clone().unsqueeze(0);
-        let out = mlp.forward(x.clone()).squeeze(&[0]);
+        let (args, kwargs) = ivalue![[x.clone()]];
+        let out = mlp.forward(args, kwargs).unwrap_tensor().squeeze(&[0]);
 
         let loss = criterion.measure(out.clone(), y.clone());
         println!(
@@ -99,11 +103,9 @@ impl Module for MLP {
         let parameters = self.linear.parameters();
         parameters
     }
-}
 
-impl Forward for MLP {
-    fn forward(&self, x: Tensor) -> Tensor {
-        let x = self.linear.forward(x);
-        F::sigmoid(x)
+    fn forward(&self, args: Vec<IValue>, kwargs: HashMap<String, IValue>) -> IValue {
+        let x = self.linear.forward(args, kwargs).unwrap_tensor();
+        IValue::Tensor(F::sigmoid(x))
     }
 }

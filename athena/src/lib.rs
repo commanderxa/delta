@@ -1,7 +1,7 @@
 pub mod backward;
 pub mod data;
+pub mod ivalue;
 pub mod linalg;
-pub mod module;
 pub mod nn;
 mod op;
 pub mod operations;

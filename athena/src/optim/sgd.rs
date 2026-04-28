@@ -17,6 +17,18 @@ pub struct SGD {
 }
 
 impl SGD {
+    pub fn lr(&self) -> f64 {
+        self.lr
+    }
+
+    pub fn is_maximize(&self) -> bool {
+        self.maximize
+    }
+
+    pub fn parameters(&self) -> &[Tensor] {
+        &self.parameters
+    }
+
     pub fn new(parameters: Vec<Tensor>, lr: f64) -> Self {
         Self {
             parameters,

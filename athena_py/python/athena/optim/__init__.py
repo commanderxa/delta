@@ -1,6 +1,6 @@
 from .. import _athena as _C
 
-_mod = _C.nn
+_mod = _C.optim
 
 for name in dir(_mod):
     if not name.startswith("_"):

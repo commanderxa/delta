@@ -1,7 +1,6 @@
 use athena::{
-    module::Forward,
-    nn::{functional as F, Linear},
-    Tensor,
+    Tensor, ivalue,
+    nn::{Linear, Module, functional as F},
 };
 
 fn main() {
@@ -9,7 +8,8 @@ fn main() {
     let x = Tensor::randn(&[2, 20]);
     println!("Weights: {}", linear.weights);
     println!("IN:\n{x}");
-    let out = linear.forward(x);
+    let (args, kwargs) = ivalue![[x]];
+    let out = linear.forward(args, kwargs).unwrap_tensor();
     println!("OUT:\n{out}");
     let out = F::sigmoid(out);
     println!("OUT:\n{out}");

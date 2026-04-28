@@ -3,6 +3,13 @@ use pyo3::prelude::*;
 
 use crate::tensor::PyTensor;
 
+pub fn register_submodule(_: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
+    parent.add_function(wrap_pyfunction!(sum, parent)?)?;
+    parent.add_function(wrap_pyfunction!(mean, parent)?)?;
+    parent.add_function(wrap_pyfunction!(cat, parent)?)?;
+    Ok(())
+}
+
 #[pyfunction]
 #[pyo3(signature = (input, dim=None, keepdim=false))]
 pub fn sum(input: PyRef<'_, PyTensor>, dim: Option<usize>, keepdim: bool) -> PyTensor {

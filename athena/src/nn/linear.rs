@@ -1,7 +1,6 @@
-use crate::{
-    Tensor, linalg,
-    module::{Forward, Module},
-};
+use std::collections::HashMap;
+
+use crate::{Tensor, ivalue::IValue, linalg, nn::Module};
 
 /// # `Linear` Layer
 ///
@@ -38,16 +37,18 @@ impl Module for Linear {
         let parameters = vec![self.weights.clone()];
         parameters
     }
-}
 
-impl Forward for Linear {
-    fn forward(&self, x: Tensor) -> Tensor {
+    fn forward(&self, args: Vec<IValue>, _kwargs: HashMap<String, IValue>) -> IValue {
+        let x = match &args[0] {
+            IValue::Tensor(t) => t.clone(),
+            _ => panic!("Linear expects a Tensor as first argument"),
+        };
         let weights = self.weights.clone();
         let mut ones_shape = x.shape();
         let _ = ones_shape.pop();
         ones_shape.push(1);
         let x = Tensor::cat(&[x, Tensor::ones(&ones_shape)], 1);
         let x = linalg::matmul(x, weights);
-        x
+        IValue::Tensor(x)
     }
 }

@@ -4,6 +4,12 @@ use pyo3::types::{PyList, PyTuple};
 
 use athena::Tensor;
 
+pub fn register_submodule(_: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
+    parent.add_class::<PyTensor>()?;
+    parent.add_function(wrap_pyfunction!(tensor, parent)?)?;
+    Ok(())
+}
+
 #[pyclass(name = "Tensor", module = "athena", unsendable, skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyTensor {
@@ -223,6 +229,12 @@ impl PyTensor {
     fn __neg__(&self) -> Self {
         Self {
             inner: -self.inner.clone(),
+        }
+    }
+
+    fn __matmul__(&self, other: &PyTensor) -> PyTensor {
+        PyTensor {
+            inner: athena::linalg::matmul(self.inner.clone(), other.inner.clone()),
         }
     }
 }
