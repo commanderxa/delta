@@ -1,4 +1,4 @@
-use crate::{op::Op, tensor_data::TensorData, Tensor};
+use crate::{Tensor, op::Op, tensor_data::TensorData};
 
 /// Matrix multiplication
 ///
@@ -23,14 +23,14 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
     assert_eq!(
         a_shape.last().unwrap(),
         b_shape.first().unwrap(),
-        "The shapes of the tensors must have the same inner dimension -> (M x N) @ (N x M), but you have tensors A: {:?} and B: {:?}", 
-        format!("({a_shape:?})").replace('[', "").replace(']', ""), 
-        format!("({b_shape:?})").replace('[', "").replace(']', ""), 
+        "The shapes of the tensors must have the same inner dimension -> (M x N) @ (N x M), but you have tensors A: {:?} and B: {:?}",
+        format!("({a_shape:?})").replace('[', "").replace(']', ""),
+        format!("({b_shape:?})").replace('[', "").replace(']', ""),
     );
     // get batch dimensions if they exist
     let mut batches: Vec<usize> = vec![];
-    for i in 2..a_shape.len() {
-        batches.push(a_shape[i - 2]);
+    for i in 0..(a_shape.len() - 2) {
+        batches.push(a_shape[i]);
     }
     // remove batch dimensions from the A tensor shape
     a_shape.drain(0..batches.len());
@@ -58,9 +58,7 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
                     .iter()
                     .zip(b_data)
                     .map(|(&a, &b)| a * b)
-                    .collect::<Vec<f64>>()
-                    .iter()
-                    .sum();
+                    .sum::<f64>();
             }
         }
     }
