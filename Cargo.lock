@@ -9,21 +9,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
-name = "athena"
-version = "0.1.0"
-dependencies = [
- "rand",
-]
-
-[[package]]
-name = "athena_py"
-version = "0.1.0"
-dependencies = [
- "athena",
- "pyo3",
-]
-
-[[package]]
 name = "bitflags"
 version = "2.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -53,6 +38,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b2a41393f66f16b0823bb79094d54ac5fbd34ab292ddafb9a0456ac9f87d201"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "delta"
+version = "0.1.0"
+dependencies = [
+ "delta-macros",
+ "rand",
+]
+
+[[package]]
+name = "delta-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "delta-py"
+version = "0.1.0"
+dependencies = [
+ "delta",
+ "pyo3",
 ]
 
 [[package]]
