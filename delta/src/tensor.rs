@@ -35,83 +35,6 @@ impl Tensor {
         }
     }
 
-    /// Creates a new tensor with the random values between 0 and 1
-    pub fn randn(shape: &[usize]) -> Self {
-        let mut inner = TensorData::from_f64(vec![0.0; shape.iter().product()]);
-        Self::fill_tensor(&mut inner, 0.0..1.0);
-        Self::new(inner, shape)
-    }
-
-    /// Creates a new tensor, where all the values are 0.
-    pub fn zeros(shape: &[usize]) -> Self {
-        let mut inner = TensorData::new(shape);
-        inner.data.fill(0.0);
-        Self::new(inner, shape)
-    }
-
-    /// Creates a new tensor like the inputted one, where all the values are 0.
-    pub fn zeros_like(tensor: &Tensor) -> Self {
-        let mut inner = TensorData::new(tensor.shape.as_slice());
-        inner.data.fill(0.0);
-        Self::new(inner, tensor.shape.as_slice())
-    }
-
-    /// Creates a new tensor, where all the values are 1.
-    pub fn ones(shape: &[usize]) -> Self {
-        let mut inner = TensorData::new(shape);
-        inner.data.fill(1.0);
-        Self::new(inner, shape)
-    }
-
-    /// Creates a new tensor like the inputted one, where all the values are 1.
-    pub fn ones_like(tensor: &Tensor) -> Self {
-        let mut inner = TensorData::new(tensor.shape.as_slice());
-        inner.data.fill(1.0);
-        Self::new(inner, tensor.shape.as_slice())
-    }
-
-    #[allow(clippy::self_named_constructors)]
-    /// Create a new tensor from the given data and the shape.
-    pub fn tensor(data: &[f64], shape: &[usize]) -> Self {
-        assert_eq!(
-            data.len(),
-            shape.iter().product(),
-            "The length of the tensor does not match the shape"
-        );
-        let inner = TensorData::from_f64(data.to_vec());
-        Self::new(inner, shape)
-    }
-
-    /// Generates a tesnor within a given range with a step.
-    ///
-    /// The `start` is inclusive and the `end` is exclusive.
-    ///
-    /// Note:
-    /// * (`end` - `start`) / `step` has to be an integer
-    /// * if `end` - `start` is negative, then `step` has to be negative
-    /// * if `end` - `start` is positive, then `step` has to be positive
-    pub fn arange(start: f64, end: f64, step: f64) -> Self {
-        let len = (end - start) / step;
-        // necessary cheks
-        assert_eq!(
-            len.fract(),
-            0.,
-            "Cannot generate a range, since the length of the tensor is not an integer, try to use other parameters"
-        );
-        if end - start < 1.0 && step > 0.0 {
-            panic!("Cannot generate a range, since the step is wrong, try to make it negative");
-        } else if end - start > 1.0 && step < 0.0 {
-            panic!("Cannot generate a range, since the step is wrong, try to make it positive");
-        }
-        // new tensor
-        let mut data = Vec::with_capacity(len as usize);
-        for i in 0..len as usize {
-            data.push(start + (step * i as f64));
-        }
-        let inner = TensorData::from_f64(data);
-        Self::new(inner, &[len as usize])
-    }
-
     /// Returns the shape of the tensor as vector.
     pub(crate) fn shape(&self) -> Vec<usize> {
         self.shape.clone()
@@ -136,7 +59,7 @@ impl Tensor {
     ///
     /// E.g. if the range is (-1.0..1.0) then each value in the tensor will be
     /// between -1 and 1.
-    fn fill_tensor(tensor: &mut TensorData, range: Range<f64>) {
+    pub(crate) fn fill_tensor(tensor: &mut TensorData, range: Range<f64>) {
         for i in 0..tensor.data.len() {
             let data = rand::random_range(range.clone());
             tensor.data[i] = data;
@@ -940,7 +863,7 @@ macro_rules! tensor {
         let shape = $crate::__tensor_shape!($data);
         let mut flat = Vec::new();
         $crate::__tensor_flatten!(flat; $data);
-        $crate::Tensor::tensor(&flat, &shape)
+        $crate::tensor(&flat, &shape)
     }};
 }
 
@@ -953,7 +876,7 @@ macro_rules! randn {
         // fill the shape
         $(shape.push($element);)*;
         // pass the shape to the `randn` method
-        Tensor::randn(&shape)
+        delta::randn(&shape)
     }};
     ($($element:expr,)*) => {{
         $crate::tensor::randn![$($element),*]

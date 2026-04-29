@@ -8,7 +8,9 @@ pub mod operations;
 pub mod optim;
 pub mod tensor;
 mod tensor_data;
+pub mod tensor_init;
 
 // define short paths
-pub use operations::{cat, mean, sum};
+pub use operations::*;
 pub use tensor::Tensor;
+pub use tensor_init::*;

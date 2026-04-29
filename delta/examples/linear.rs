@@ -1,11 +1,11 @@
 use delta::{
-    Tensor, ivalue,
+    ivalue,
     nn::{Linear, Module, functional as F},
 };
 
 fn main() {
     let linear = Linear::new(20, 10, true);
-    let x = Tensor::randn(&[2, 20]);
+    let x = delta::randn(&[2, 20]);
     println!("Weights: {}", linear.weights.0);
     println!("IN:\n{x}");
     let (args, kwargs) = ivalue![[x]];

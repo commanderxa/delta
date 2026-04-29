@@ -59,7 +59,7 @@ impl Backward for Op {
                     }
                     Some(dim) => {
                         let mut grad_tensor =
-                            Tensor::tensor(&grad, &tensor.shape).requires_grad(false);
+                            crate::tensor(&grad, &tensor.shape).requires_grad(false);
 
                         if !*keepdim {
                             let mut shape = prev_shape.clone();
@@ -90,7 +90,7 @@ impl Backward for Op {
                     }
                     Some(dim) => {
                         let mut grad_tensor =
-                            Tensor::tensor(&grad, &tensor.shape).requires_grad(false);
+                            crate::tensor(&grad, &tensor.shape).requires_grad(false);
 
                         if !*keepdim {
                             let mut shape = prev_shape.clone();
@@ -195,7 +195,7 @@ impl Backward for Op {
                         }
                     }
                 }
-                let a = Tensor::tensor(&jacobian, &[n, n]).t();
+                let a = crate::tensor(&jacobian, &[n, n]).t();
                 t._prev[0].add_to_grad(a.item());
             }
 

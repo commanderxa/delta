@@ -3,17 +3,16 @@ mod tests {
     use std::collections::HashMap;
 
     use delta::{
-        Tensor, ivalue,
+        ivalue,
         ivalue::IValue,
         nn::{self, Linear, Module, functional as F},
         optim::{Optim, SGD},
-        tensor,
     };
 
     #[test]
     fn zero_grad() {
-        let a = nn::Parameter(Tensor::tensor(&[1., 2., 3., 4., 5., 6.], &[2, 3]));
-        let b = nn::Parameter(Tensor::ones(&[2, 3]));
+        let a = nn::Parameter(delta::tensor(&[1., 2., 3., 4., 5., 6.], &[2, 3]));
+        let b = nn::Parameter(delta::ones(&[2, 3]));
         let optim = SGD::new(vec![a.clone(), b.clone()], 1e-3);
         let c = delta::sum(&(a.0.clone() * b.0.clone()), None, false);
         c.backward();
@@ -31,7 +30,7 @@ mod tests {
         let optim = SGD::new(mlp.parameters(), 1e-1);
         optim.zero_grad();
 
-        let x = Tensor::randn(&[10, 4]);
+        let x = delta::randn(&[10, 4]);
         let criterion = nn::MSELoss::default();
 
         let (args, kwargs) = ivalue![[x.clone()]];
@@ -39,7 +38,7 @@ mod tests {
         out = out.squeeze(&[]);
         let loss = criterion.measure(
             out.clone(),
-            tensor::Tensor::tensor(&[1., 0., 1., 0., 1., 0., 1., 1., 0., 1.], &[10]),
+            delta::tensor(&[1., 0., 1., 0., 1., 0., 1., 1., 0., 1.], &[10]),
         );
 
         loss.backward();

@@ -6,12 +6,6 @@ use delta::Tensor;
 
 pub fn register_submodule(_: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
     parent.add_class::<PyTensor>()?;
-    parent.add_function(wrap_pyfunction!(tensor, parent)?)?;
-    parent.add_function(wrap_pyfunction!(randn, parent)?)?;
-    parent.add_function(wrap_pyfunction!(zeros, parent)?)?;
-    parent.add_function(wrap_pyfunction!(zeros_like, parent)?)?;
-    parent.add_function(wrap_pyfunction!(ones, parent)?)?;
-    parent.add_function(wrap_pyfunction!(ones_like, parent)?)?;
     Ok(())
 }
 
@@ -23,12 +17,6 @@ pub struct PyTensor {
 
 #[pymethods]
 impl PyTensor {
-    #[staticmethod]
-    fn zeros(shape: Vec<usize>) -> Self {
-        Self {
-            inner: Tensor::zeros(&shape),
-        }
-    }
 
     #[allow(non_snake_case)]
     #[getter]
@@ -36,36 +24,6 @@ impl PyTensor {
         Ok(Self {
             inner: self.inner.t(),
         })
-    }
-
-    #[staticmethod]
-    fn zeros_like(a: PyRef<'_, PyTensor>) -> Self {
-        let shape = a.shape();
-        Self {
-            inner: Tensor::zeros(&shape),
-        }
-    }
-
-    #[staticmethod]
-    fn ones(shape: Vec<usize>) -> Self {
-        Self {
-            inner: Tensor::ones(&shape),
-        }
-    }
-
-    #[staticmethod]
-    fn ones_like(a: PyRef<'_, PyTensor>) -> Self {
-        let shape = a.shape();
-        Self {
-            inner: Tensor::ones(&shape),
-        }
-    }
-
-    #[staticmethod]
-    fn randn(shape: Vec<usize>) -> Self {
-        Self {
-            inner: Tensor::randn(&shape),
-        }
     }
 
     #[getter]
@@ -244,50 +202,7 @@ impl PyTensor {
     }
 }
 
-#[pyfunction]
-pub fn tensor(obj: &Bound<'_, PyAny>) -> PyResult<PyTensor> {
-    let (data, shape) = extract_nested(obj)?;
-    Ok(PyTensor {
-        inner: Tensor::tensor(&data, &shape),
-    })
-}
-
-#[pyfunction]
-pub fn randn(shape: Vec<usize>) -> PyResult<PyTensor> {
-    Ok(PyTensor {
-        inner: Tensor::randn(&shape),
-    })
-}
-
-#[pyfunction]
-pub fn zeros(shape: Vec<usize>) -> PyResult<PyTensor> {
-    Ok(PyTensor {
-        inner: Tensor::zeros(&shape),
-    })
-}
-
-#[pyfunction]
-pub fn zeros_like(tensor: PyRef<'_, PyTensor>) -> PyResult<PyTensor> {
-    Ok(PyTensor {
-        inner: Tensor::zeros_like(&tensor.inner),
-    })
-}
-
-#[pyfunction]
-pub fn ones(shape: Vec<usize>) -> PyResult<PyTensor> {
-    Ok(PyTensor {
-        inner: Tensor::ones(&shape),
-    })
-}
-
-#[pyfunction]
-pub fn ones_like(tensor: PyRef<'_, PyTensor>) -> PyResult<PyTensor> {
-    Ok(PyTensor {
-        inner: Tensor::ones_like(&tensor.inner),
-    })
-}
-
-fn extract_nested(obj: &Bound<'_, PyAny>) -> PyResult<(Vec<f64>, Vec<usize>)> {
+pub(crate) fn extract_nested(obj: &Bound<'_, PyAny>) -> PyResult<(Vec<f64>, Vec<usize>)> {
     if let Ok(value) = obj.extract::<f64>() {
         return Ok((vec![value], vec![]));
     }
@@ -305,7 +220,7 @@ fn extract_nested(obj: &Bound<'_, PyAny>) -> PyResult<(Vec<f64>, Vec<usize>)> {
     ))
 }
 
-fn extract_sequence(items: Vec<Bound<'_, PyAny>>) -> PyResult<(Vec<f64>, Vec<usize>)> {
+pub(crate) fn extract_sequence(items: Vec<Bound<'_, PyAny>>) -> PyResult<(Vec<f64>, Vec<usize>)> {
     let len = items.len();
 
     if len == 0 {
@@ -340,7 +255,7 @@ fn extract_sequence(items: Vec<Bound<'_, PyAny>>) -> PyResult<(Vec<f64>, Vec<usi
     Ok((flat, shape))
 }
 
-fn parse_shape(obj: &Bound<'_, PyAny>, total_len: usize) -> PyResult<Vec<usize>> {
+pub(crate) fn parse_shape(obj: &Bound<'_, PyAny>, total_len: usize) -> PyResult<Vec<usize>> {
     let dims: Vec<isize> = if let Ok(v) = obj.extract::<isize>() {
         vec![v]
     } else if let Ok(v) = obj.extract::<Vec<isize>>() {

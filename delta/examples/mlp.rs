@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use delta::{
-    Tensor, ivalue,
+    ivalue,
     ivalue::IValue,
     nn::{self, Linear, MSELoss, Module, functional as F},
     optim::{Optim, SGD},
@@ -14,37 +14,37 @@ fn main() {
     let optim = SGD::new(mlp.parameters(), 1e-1);
 
     let data = vec![
-        Tensor::tensor(&[9., 3.], &[2]),
-        Tensor::tensor(&[2., 3.], &[2]),
-        Tensor::tensor(&[3., 7.], &[2]),
-        Tensor::tensor(&[8., 6.], &[2]),
-        Tensor::tensor(&[4., 4.], &[2]),
-        Tensor::tensor(&[4., 1.], &[2]),
-        Tensor::tensor(&[5., 2.], &[2]),
-        Tensor::tensor(&[2., 5.], &[2]),
-        Tensor::tensor(&[5., 6.], &[2]),
-        Tensor::tensor(&[7., 2.], &[2]),
-        Tensor::tensor(&[9., 1.], &[2]),
+        delta::tensor(&[9., 3.], &[2]),
+        delta::tensor(&[2., 3.], &[2]),
+        delta::tensor(&[3., 7.], &[2]),
+        delta::tensor(&[8., 6.], &[2]),
+        delta::tensor(&[4., 4.], &[2]),
+        delta::tensor(&[4., 1.], &[2]),
+        delta::tensor(&[5., 2.], &[2]),
+        delta::tensor(&[2., 5.], &[2]),
+        delta::tensor(&[5., 6.], &[2]),
+        delta::tensor(&[7., 2.], &[2]),
+        delta::tensor(&[9., 1.], &[2]),
     ];
     let targets = vec![
-        Tensor::tensor(&[0.], &[1]),
-        Tensor::tensor(&[1.], &[1]),
-        Tensor::tensor(&[1.], &[1]),
-        Tensor::tensor(&[1.], &[1]),
-        Tensor::tensor(&[1.], &[1]),
-        Tensor::tensor(&[0.], &[1]),
-        Tensor::tensor(&[0.], &[1]),
-        Tensor::tensor(&[1.], &[1]),
-        Tensor::tensor(&[1.], &[1]),
-        Tensor::tensor(&[0.], &[1]),
-        Tensor::tensor(&[0.], &[1]),
+        delta::tensor(&[0.], &[1]),
+        delta::tensor(&[1.], &[1]),
+        delta::tensor(&[1.], &[1]),
+        delta::tensor(&[1.], &[1]),
+        delta::tensor(&[1.], &[1]),
+        delta::tensor(&[0.], &[1]),
+        delta::tensor(&[0.], &[1]),
+        delta::tensor(&[1.], &[1]),
+        delta::tensor(&[1.], &[1]),
+        delta::tensor(&[0.], &[1]),
+        delta::tensor(&[0.], &[1]),
     ];
 
     let test_data = vec![
-        Tensor::tensor(&[6., 6.], &[2]),
-        Tensor::tensor(&[8., 2.], &[2]),
+        delta::tensor(&[6., 6.], &[2]),
+        delta::tensor(&[8., 2.], &[2]),
     ];
-    let test_targets = vec![Tensor::tensor(&[1.], &[1]), Tensor::tensor(&[0.], &[1])];
+    let test_targets = vec![delta::tensor(&[1.], &[1]), delta::tensor(&[0.], &[1])];
 
     for epoch in 1..=epochs {
         let mut losses = 0.0;

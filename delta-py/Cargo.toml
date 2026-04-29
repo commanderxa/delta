@@ -2,6 +2,12 @@
 name = "delta-py"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.95.0"
+# info
+authors = ["commanderxa"]
+readme = "README.md"
+repository = "https://github.com/CommanderXA/delta"
+license-file = "LICENSE.txt"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]

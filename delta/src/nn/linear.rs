@@ -29,7 +29,7 @@ impl Linear {
         if bias {
             in_features += 1;
         }
-        let _weights = Parameter(Tensor::randn(&[in_features, out_features]));
+        let _weights = Parameter(crate::randn(&[in_features, out_features]));
         Self { weights: _weights }
     }
 }
@@ -53,7 +53,7 @@ impl Module for Linear {
         let mut ones_shape = x.shape();
         let _ = ones_shape.pop();
         ones_shape.push(1);
-        let x = Tensor::cat(&[x, Tensor::ones(&ones_shape)], 1);
+        let x = Tensor::cat(&[x, crate::ones(&ones_shape)], 1);
         let x = linalg::matmul(x, weights.0);
         IValue::Tensor(x)
     }

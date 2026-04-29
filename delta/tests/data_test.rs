@@ -1,9 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use delta::{
-        data::{dataloader::Dataloader, dataset::Dataset, sample::Sample},
-        Tensor,
-    };
+    use delta::data::{dataloader::Dataloader, dataset::Dataset, sample::Sample};
 
     struct MyDataset {
         data: Vec<Sample>,
@@ -13,12 +10,12 @@ mod tests {
         fn new() -> Self {
             Self {
                 data: vec![
-                    (Tensor::tensor(&[0.0], &[1]), Tensor::tensor(&[0.0], &[1])),
-                    (Tensor::tensor(&[1.0], &[1]), Tensor::tensor(&[2.0], &[1])),
-                    (Tensor::tensor(&[2.0], &[1]), Tensor::tensor(&[4.0], &[1])),
-                    (Tensor::tensor(&[3.0], &[1]), Tensor::tensor(&[6.0], &[1])),
-                    (Tensor::tensor(&[4.0], &[1]), Tensor::tensor(&[8.0], &[1])),
-                    (Tensor::tensor(&[5.0], &[1]), Tensor::tensor(&[10.0], &[1])),
+                    (delta::tensor(&[0.0], &[1]), delta::tensor(&[0.0], &[1])),
+                    (delta::tensor(&[1.0], &[1]), delta::tensor(&[2.0], &[1])),
+                    (delta::tensor(&[2.0], &[1]), delta::tensor(&[4.0], &[1])),
+                    (delta::tensor(&[3.0], &[1]), delta::tensor(&[6.0], &[1])),
+                    (delta::tensor(&[4.0], &[1]), delta::tensor(&[8.0], &[1])),
+                    (delta::tensor(&[5.0], &[1]), delta::tensor(&[10.0], &[1])),
                 ],
             }
         }

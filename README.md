@@ -31,27 +31,13 @@ A Deep Learning library implemented in pure `Rust`. It is inspired by [`microgra
 
 ## Setup
 
-This project requires the version of `Rust` $>= 1.95$.
+This project is composed from several small project. Please visit their respective README.md pages to set them up.
 
-To build the library run:
+- **[`delta`](./delta/README.md) (core package)**: `rust` core library
+- **[`delta-py`](./delta-py/README.md) (bindings)**: `python` bindings
+- **[`delta-macros`](./delta-macros/README.md) (helper)**: `rust` helper macros
 
-```sh
-cargo build
-```
 
-Ensure that no test fails:
-
-```sh
-cargo test
-```
-
-## Usage
-
-See `/examples` for usage examples. To run an example, execute the following line passing a file name:
-
-```sh
-cargo run --example <name>
-```
 
 ## License
 
