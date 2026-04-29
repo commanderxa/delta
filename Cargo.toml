@@ -1,16 +1,5 @@
-[package]
-name = "athena"
-# versions
-version = "0.1.0"
-edition = "2024"
-rust-version = "1.95.0"
-# info
-authors = ["commanderxa"]
-readme = "README.md"
-repository = "https://github.com/CommanderXA/athena"
-license-file = "LICENSE.txt"
+[workspace]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+members = ["delta", "delta-macros", "delta-py"]
 
-[dependencies]
-rand = "0.10.1"
+resolver = "2"
