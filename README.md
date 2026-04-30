@@ -3,8 +3,6 @@
   <img src="media/header.png" width="100%" alt="Project Header">
 </div>
 
-<br>
-
 <h1 align="left">The <b>DELTA</b> Project</h1>
 
 <div align="left">
