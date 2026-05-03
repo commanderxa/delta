@@ -60,7 +60,7 @@ fn main() {
             loss.backward();
             optim.step();
 
-            losses += loss.item()[0];
+            losses += loss.data()[0];
         }
         println!("Epoch: {epoch}/{epochs} | loss: {:.10}", losses);
     }
@@ -74,9 +74,9 @@ fn main() {
         println!(
             "\nDATA: {0}\nTARGETS: {1}\nOUT:  {2}\nLOSS: {3:?}",
             x,
-            y.item()[0],
-            out.item()[0],
-            loss.item()[0]
+            y.data()[0],
+            out.data()[0],
+            loss.data()[0]
         );
         loss.backward();
     }

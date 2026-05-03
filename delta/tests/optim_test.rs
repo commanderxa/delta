@@ -47,7 +47,7 @@ mod tests {
             .parameters()
             .clone()
             .iter()
-            .map(|x| x.item())
+            .map(|x| x.data())
             .collect::<Vec<Vec<f64>>>();
 
         optim.step();
@@ -56,7 +56,7 @@ mod tests {
             .parameters()
             .clone()
             .iter()
-            .map(|x| x.item())
+            .map(|x| x.data())
             .collect::<Vec<Vec<f64>>>();
 
         for i in 0..old_data.len() {

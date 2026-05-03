@@ -22,14 +22,14 @@ mod tests {
     fn zeros_like() {
         let a = delta::tensor(&[0., 1., 2., 3., 4., 5.], &[2, 3]);
         let a1 = delta::zeros_like(&a);
-        assert_eq!(0., a1.item().iter().sum(), "zeros_like produces not zeros");
+        assert_eq!(0., a1.data().iter().sum(), "zeros_like produces not zeros");
         assert_eq!(
             a.shape, a1.shape,
             "zeros_like produce wrong shape of a tensor"
         );
         let b = delta::randn(&[4, 10, 8]);
         let b1 = delta::zeros_like(&b);
-        assert_eq!(0., b1.item().iter().sum(), "zeros_like produces not zeros");
+        assert_eq!(0., b1.data().iter().sum(), "zeros_like produces not zeros");
         assert_eq!(
             b.shape, b1.shape,
             "zeros_like produce wrong shape of a tensor"
@@ -42,7 +42,7 @@ mod tests {
         let a1 = delta::ones_like(&a);
         assert_eq!(
             1.,
-            a1.item().iter().product(),
+            a1.data().iter().product(),
             "ones_like produces not ones"
         );
         assert_eq!(
@@ -53,7 +53,7 @@ mod tests {
         let b1 = delta::ones_like(&b);
         assert_eq!(
             1.,
-            b1.item().iter().product(),
+            b1.data().iter().product(),
             "ones_like produces not ones"
         );
         assert_eq!(
@@ -68,7 +68,7 @@ mod tests {
         let a = delta::tensor(&[0., 1., 2., 3., 4., 5.], &[2, 3]);
         let t = delta::tensor(&[0., 3., 1., 4., 2., 5.], &[3, 2]);
         assert_eq!(a.t().shape, t.shape, "Shapes are wrong");
-        assert_eq!(a.t().item(), t.item(), "Data is wrong");
+        assert_eq!(a.t().data(), t.data(), "Data is wrong");
     }
 
     #[test]
@@ -76,7 +76,7 @@ mod tests {
     fn arange() {
         let a = delta::arange(0., 6., 1.);
         assert_eq!(a.shape, vec![a.length()], "Shape is wrong");
-        assert_eq!(a.item(), vec![0., 1., 2., 3., 4., 5.], "Data is wrong");
+        assert_eq!(a.data(), vec![0., 1., 2., 3., 4., 5.], "Data is wrong");
     }
 
     #[test]
@@ -157,7 +157,7 @@ mod tests {
     fn pow() {
         let a = delta::tensor(&[0., 1., 2., 3., 4., 5.], &[2, 3]);
         let b = delta::tensor(&[0., 1., 4., 9., 16., 25.], &[2, 3]);
-        assert_eq!(a.pow(2).item(), b.item(), "Pow is wrong");
+        assert_eq!(a.pow(2).data(), b.data(), "Pow is wrong");
     }
 
     #[test]
@@ -245,7 +245,7 @@ mod tests {
         let expectation = vec![
             1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
         ];
-        let actual = delta::eye(4).item();
+        let actual = delta::eye(4).data();
         assert_eq!(actual, expectation);
     }
 
@@ -255,23 +255,23 @@ mod tests {
         let a = delta::ones(&[2, 4]);
         let b = delta::zeros(&[1, 4]);
         let c = delta::cat(&[a, b], 0);
-        assert_eq!(c.item(), exp);
+        assert_eq!(c.data(), exp);
 
         let exp = vec![1., 1., 1., 1., 0., 0., 0., 0.];
         let a = delta::ones(&[1, 4]);
         let b = delta::zeros(&[1, 4]);
         let c = delta::cat(&[a, b], -1);
-        assert_eq!(c.item(), exp);
+        assert_eq!(c.data(), exp);
     }
 
     #[test]
     fn sum() {
         let a = delta::ones(&[1, 4]).sum(Some(1), false);
         let a_e = vec![4.];
-        assert_eq!(a.item(), a_e);
+        assert_eq!(a.data(), a_e);
         let b = delta::ones(&[4, 4]).sum(Some(0), false);
         let b_e = vec![4., 4., 4., 4.];
-        assert_eq!(b.item(), b_e);
+        assert_eq!(b.data(), b_e);
     }
 
     #[test]
@@ -279,12 +279,12 @@ mod tests {
         let a = delta::arange(0., 9., 1.).reshape(&[3, 3]);
         let a0 = a.reshape(&[9]).mean(Some(0), false);
         let a0_e = vec![4.];
-        assert_eq!(a0.item(), a0_e);
+        assert_eq!(a0.data(), a0_e);
         let a1 = a.mean(Some(0), false);
         let a1_e = vec![3., 4., 5.];
-        assert_eq!(a1.item(), a1_e);
+        assert_eq!(a1.data(), a1_e);
         let a2 = a.mean(Some(1), false);
         let a2_e = vec![1., 4., 7.];
-        assert_eq!(a2.item(), a2_e);
+        assert_eq!(a2.data(), a2_e);
     }
 }

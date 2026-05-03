@@ -41,4 +41,4 @@ uv add <PATH_TO_THE_PROJECT_ROOT>/target/wheels/delta-0.1.0-*.whl
 ## License
 
 This project is licensed under the terms of Apache 2.0 license.
-See the [LICENSE](../LICENSE) file for details.
+See the [LICENSE](./LICENSE) file for details.

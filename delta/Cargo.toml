@@ -8,13 +8,21 @@ rust-version = "1.95.0"
 authors = ["commanderxa"]
 readme = "README.md"
 repository = "https://github.com/CommanderXA/delta"
-license-file = "LICENSE.txt"
+license-file = "LICENSE"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+cuda = ["dep:cudarc"]
+
 [dependencies]
-rand = "0.10.1"
 delta-macros = { path = "../delta-macros" }
+
+rand = "0.10.1"
+cudarc = { version = "0.19", optional = true, features = [
+    "cublas",
+    "cuda-version-from-build-system",
+] }
 
 [lib]
 name = "delta"

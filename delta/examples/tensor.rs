@@ -10,7 +10,7 @@ fn main() {
 
 fn print_info(t: Tensor) -> () {
     println!("Tensor");
-    println!("\tdata: {:?}", t.item());
+    println!("\tdata: {:?}", t.data());
     println!("\tshape: {:?}", t.shape);
     println!("\tsimple: {}", t);
     println!("\tfull: {:?}", t);

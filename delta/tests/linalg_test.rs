@@ -9,7 +9,7 @@ mod tests {
         let b: Tensor = delta::tensor(&[6., 7., 8., 9., 10., 11.], &[3, 2]);
         let c = delta::tensor(&[28., 31., 100., 112.], &[2, 2]);
         let mm = linalg::matmul(a, b);
-        assert_eq!(mm.item(), c.item());
+        assert_eq!(mm.data(), c.data());
         assert_eq!(mm.shape, c.shape);
     }
 
@@ -42,7 +42,7 @@ mod tests {
             &[2, 4, 2],
         );
         let c = linalg::matmul(a.clone(), b.clone());
-        assert_eq!(c.item(), right.item());
+        assert_eq!(c.data(), right.data());
         assert_eq!(c.shape, right.shape);
     }
 
@@ -51,7 +51,7 @@ mod tests {
         let a = delta::tensor(&[0.6, -20.5, 5.8], &[3]);
         let b = delta::tensor(&[10.2, -4.6, -34.], &[3]);
         let c = linalg::cross(a.clone(), b.clone());
-        assert_eq!(vec![723.6800, 79.5600, 206.3400], c.item());
+        assert_eq!(vec![723.6800, 79.5600, 206.3400], c.data());
     }
 
     #[test]
@@ -95,9 +95,9 @@ mod tests {
         ];
         assert_eq!(c.shape, a.shape);
         assert_eq!(c.stride, a.stride);
-        let c_item = c.item();
+        let c_data = c.data();
         for i in 0..c.length() {
-            assert!((c_item[i] - correct[i]).abs() < 0.001);
+            assert!((c_data[i] - correct[i]).abs() < 0.001);
         }
     }
 

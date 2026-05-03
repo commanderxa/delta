@@ -41,7 +41,7 @@ mod tests {
         let dataset = MyDataset::new();
         let dataloader = Dataloader::new(Box::new(dataset), 1, true);
         for (x, y) in dataloader.clone() {
-            assert_eq!((x * 2 as i64).item(), y.item());
+            assert_eq!((x * 2 as i64).data(), y.data());
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{Tensor, op::Op, tensor_data::TensorData};
+use crate::{Tensor, op::Op, tensor_impl::TensorImpl};
 
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub enum Reduction {
@@ -20,7 +20,7 @@ impl MSELoss {
 
     pub fn measure(&self, a: Tensor, b: Tensor) -> Tensor {
         let t = (a - b).pow(2) * 0.5 as f64;
-        let a = t.item();
+        let a = t.data();
         let t_len = t.length() as f64;
         let mut s = 0.0;
         if let Some(reduction) = self.reduction {
@@ -29,7 +29,7 @@ impl MSELoss {
                 s /= t_len;
             }
         }
-        let inner = TensorData::from_op(vec![s], vec![t], Op::MSE(t_len as usize));
+        let inner = TensorImpl::from_op(vec![s], vec![t.clone()], Op::MSE(t_len as usize), t.device);
         Tensor::new(inner, &[1])
     }
 }
@@ -55,7 +55,7 @@ impl CrossEntropyLoss {
 
     pub fn measure(&self, a: Tensor, b: Tensor) -> Tensor {
         let t = (a - b).pow(2) * 0.5 as f64;
-        let a = t.item();
+        let a = t.data();
         let t_len = t.length() as f64;
         let mut s = 0.0;
         if let Some(reduction) = self.reduction {
@@ -64,7 +64,7 @@ impl CrossEntropyLoss {
                 s /= t_len;
             }
         }
-        let inner = TensorData::from_op(vec![s], vec![t], Op::MSE(t_len as usize));
+        let inner = TensorImpl::from_op(vec![s], vec![t.clone()], Op::MSE(t_len as usize), t.device);
         Tensor::new(inner, &[1])
     }
 }

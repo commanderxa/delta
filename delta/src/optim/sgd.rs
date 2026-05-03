@@ -53,7 +53,7 @@ impl Optim for SGD {
                 .grad()
                 .unwrap()
                 .iter()
-                .zip(self.parameters[i].item())
+                .zip(self.parameters[i].data())
                 .map(|(a, b)| {
                     // w_i = w_(i-1) - lr * grad
                     // b = w(i-1)

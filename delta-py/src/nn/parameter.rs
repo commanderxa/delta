@@ -29,7 +29,7 @@ impl PyParameter {
     }
 
     fn item(&self) -> Vec<f64> {
-        self.inner.0.item()
+        self.inner.0.data()
     }
 
     #[getter]

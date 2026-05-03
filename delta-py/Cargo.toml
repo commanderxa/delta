@@ -7,7 +7,8 @@ rust-version = "1.95.0"
 authors = ["commanderxa"]
 readme = "README.md"
 repository = "https://github.com/CommanderXA/delta"
-license-file = "LICENSE.txt"
+license-file = "../LICENSE"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
@@ -15,7 +16,9 @@ name = "delta_py"
 path = "src/lib.rs"
 crate-type = ["cdylib"]
 
+[features]
+cuda = ["delta/cuda"]
+
 [dependencies]
 pyo3 = "0.28.2"
-
 delta = { path = "../delta" }

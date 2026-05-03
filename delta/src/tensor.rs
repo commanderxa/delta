@@ -6,32 +6,37 @@ use std::{
     rc::Rc,
 };
 
-use crate::{backward::Backward, op::Op, tensor_data::TensorData};
+use crate::{
+    backward::Backward, device::Device, op::Op, storage::Storage, tensor_impl::TensorImpl,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 /// # Tensor
 ///
 /// ### Holds the reference to the inner data inside.
 ///
-/// See the documentation for `TensorData`.
+/// See the documentation for `TensorImpl`.
 pub struct Tensor {
-    pub(crate) inner: Rc<RefCell<TensorData>>,
+    pub(crate) inner: Rc<RefCell<TensorImpl>>,
     pub shape: Vec<usize>,
     pub stride: Vec<usize>,
+    pub device: Device,
 }
 
 impl Tensor {
     /// Creates a new instance of a `Tensor`.
-    pub(crate) fn new(inner: TensorData, shape: &[usize]) -> Self {
+    pub(crate) fn new(inner: TensorImpl, shape: &[usize]) -> Self {
         let mut stride = vec![1; shape.len()];
         // compute stride
         for i in (0..shape.len() - 1).rev() {
             stride[i] = shape[i + 1] * stride[i + 1];
         }
+        let device = inner.device();
         Self {
             inner: Rc::new(RefCell::new(inner)),
             shape: shape.to_vec(),
             stride,
+            device: device,
         }
     }
 
@@ -51,6 +56,10 @@ impl Tensor {
 
     /// Returns the data of `Tensor` as it is stored.
     pub fn storage(&self) -> Vec<f64> {
+        self.inner.borrow().data.to_vec().clone()
+    }
+
+    pub(crate) fn get_data_storage(&self) -> Storage {
         self.inner.borrow().data.clone()
     }
 
@@ -59,21 +68,24 @@ impl Tensor {
     ///
     /// E.g. if the range is (-1.0..1.0) then each value in the tensor will be
     /// between -1 and 1.
-    pub(crate) fn fill_tensor(tensor: &mut TensorData, range: Range<f64>) {
-        for i in 0..tensor.data.len() {
-            let data = rand::random_range(range.clone());
-            tensor.data[i] = data;
-            tensor.grad.as_mut().unwrap().push(0.0);
-        }
+    pub(crate) fn fill_tensor(tensor: &mut TensorImpl, range: Range<f64>) {
+        let len = tensor.data.len();
+        let values: Vec<f64> = (0..len)
+            .map(|_| rand::random_range(range.clone()))
+            .collect();
+        tensor.data.replace_data(values);
+        tensor.grad = Some(Storage::CPU {
+            data: vec![0.0; len],
+        });
     }
 
     /// Returns an owned copy of tensor strides
-    fn stride(&self) -> Vec<usize> {
+    pub(crate) fn stride(&self) -> Vec<usize> {
         self.stride.clone()
     }
 
     /// Returns the data of the tensor.
-    pub fn item(&self) -> Vec<f64> {
+    pub fn data(&self) -> Vec<f64> {
         let storage = self.storage();
         let stride = self.stride();
         let shape = self.shape();
@@ -108,7 +120,17 @@ impl Tensor {
     /// `None` if is not necessary.
     pub fn requires_grad(self, value: bool) -> Self {
         if value {
-            self.inner.borrow_mut().grad = Some(vec![0.0; self.length()]);
+            let grad = match self.device {
+                Device::CPU => Storage::CPU {
+                    data: vec![0.0; self.length()],
+                },
+                #[cfg(feature = "cuda")]
+                Device::CUDA => Storage::CPU {
+                    data: vec![0.0; self.length()],
+                }
+                .to_cuda(),
+            };
+            self.inner.borrow_mut().grad = Some(grad);
         } else {
             self.inner.borrow_mut().grad = None;
         }
@@ -118,23 +140,24 @@ impl Tensor {
     pub fn sum(&self, dim: Option<usize>, keepdim: bool) -> Tensor {
         match dim {
             None => {
-                let value: f64 = self.item().iter().sum();
+                let value: f64 = self.data().iter().sum();
                 let shape = if keepdim {
                     vec![1; self.shape.len().max(1)]
                 } else {
                     vec![1]
                 };
-                let inner = TensorData::from_op(
+                let inner = TensorImpl::from_op(
                     vec![value],
                     vec![self.clone()],
                     Op::Sum { dim: None, keepdim },
+                    self.device,
                 );
                 Tensor::new(inner, &shape)
             }
             Some(dim) => {
                 assert!(dim < self.shape.len(), "sum: dim out of range");
 
-                let input = self.item();
+                let input = self.data();
                 let outer: usize = self.shape[..dim].iter().product();
                 let reduce: usize = self.shape[dim];
                 let inner: usize = self.shape[dim + 1..].iter().product();
@@ -162,13 +185,14 @@ impl Tensor {
                     }
                 }
 
-                let inner_data = TensorData::from_op(
+                let inner_data = TensorImpl::from_op(
                     out,
                     vec![self.clone()],
                     Op::Sum {
                         dim: Some(dim),
                         keepdim,
                     },
+                    self.device,
                 );
                 Tensor::new(inner_data, &out_shape)
             }
@@ -180,13 +204,13 @@ impl Tensor {
             None => {
                 let n = self.length();
                 assert!(n > 0, "mean of empty tensor is undefined");
-                let value: f64 = self.item().iter().sum::<f64>() / n as f64;
+                let value: f64 = self.data().iter().sum::<f64>() / n as f64;
                 let shape = if keepdim {
                     vec![1; self.shape.len().max(1)]
                 } else {
                     vec![1]
                 };
-                let inner = TensorData::from_op(
+                let inner = TensorImpl::from_op(
                     vec![value],
                     vec![self.clone()],
                     Op::Mean {
@@ -194,13 +218,14 @@ impl Tensor {
                         keepdim,
                         count: n,
                     },
+                    self.device,
                 );
                 Tensor::new(inner, &shape)
             }
             Some(dim) => {
                 assert!(dim < self.shape.len(), "mean: dim out of range");
 
-                let input = self.item();
+                let input = self.data();
                 let outer: usize = self.shape[..dim].iter().product();
                 let reduce: usize = self.shape[dim];
                 let inner: usize = self.shape[dim + 1..].iter().product();
@@ -228,7 +253,7 @@ impl Tensor {
                     }
                 }
 
-                let inner_data = TensorData::from_op(
+                let inner_data = TensorImpl::from_op(
                     out,
                     vec![self.clone()],
                     Op::Mean {
@@ -236,6 +261,7 @@ impl Tensor {
                         keepdim,
                         count: reduce,
                     },
+                    self.device,
                 );
                 Tensor::new(inner_data, &out_shape)
             }
@@ -343,7 +369,7 @@ impl Tensor {
             stride[i] = shape[i + 1] * stride[i + 1];
         }
         let mut t = self.clone();
-        t.inner.borrow_mut().data = data;
+        t.inner.borrow_mut().data.replace_data(data);
         t.shape = shape.to_vec();
         t.stride = stride;
         t
@@ -396,11 +422,12 @@ impl Tensor {
     ///
     /// `exp(x)` => `e^(x)`.
     pub fn exp(&self) -> Tensor {
-        let mut data = self.item();
+        let mut data = self.data();
         for item in data.iter_mut() {
             *item = E.powf(*item);
         }
-        let inner = TensorData::from_op(data, vec![self.clone()], Op::Exp(self.clone()));
+        let inner =
+            TensorImpl::from_op(data, vec![self.clone()], Op::Exp(self.clone()), self.device);
         Tensor::new(inner, &self.shape)
     }
 
@@ -445,28 +472,104 @@ impl Tensor {
         t
     }
 
-    /// Add a `Vec<f64>` value to the gradient inside the `TensorData`.
-    pub(crate) fn add_to_grad(&self, data: Vec<f64>) {
-        let mut t = self.inner.borrow_mut();
-        t.grad = Some(
-            t.grad
-                .clone()
-                .unwrap()
+    pub fn contiguous(&self) -> Self {
+        // already contiguous — no work needed
+        if self.is_contiguous() {
+            return self.clone();
+        }
+
+        let old_data = self.cpu().get_data_storage();
+        let old_data = old_data.as_cpu();
+        let shape = self.shape();
+        let strides = self.stride();
+
+        let total: usize = shape.iter().product();
+        let mut new_data = vec![0.0f64; total];
+
+        for flat_idx in 0..total {
+            // flat index -> nd index in current shape
+            let mut nd_idx = vec![0usize; shape.len()];
+            let mut remainder = flat_idx;
+            for d in (0..shape.len()).rev() {
+                nd_idx[d] = remainder % shape[d];
+                remainder /= shape[d];
+            }
+
+            // nd index -> flat index in source data via strides
+            let src_idx: usize = nd_idx
                 .iter()
-                .zip(data)
-                .map(|(a, b)| a + b)
-                .collect(),
-        );
+                .zip(strides.iter())
+                .map(|(&i, &s)| i * s)
+                .sum();
+
+            new_data[flat_idx] = old_data[src_idx];
+        }
+
+        // compute new contiguous row-major strides
+        let mut new_strides = vec![1usize; shape.len()];
+        for d in (0..shape.len() - 1).rev() {
+            new_strides[d] = new_strides[d + 1] * shape[d + 1];
+        }
+
+        let device = self.device;
+
+        let inner = match device {
+            Device::CPU => TensorImpl::from_f64(new_data),
+            #[cfg(feature = "cuda")]
+            Device::CUDA => {
+                let _inner = &self.inner.borrow();
+                TensorImpl::from_cuda(
+                    Storage::to_cuda_slice(&new_data),
+                    _inner._prev.clone(),
+                    _inner._op.clone(),
+                )
+            }
+        };
+
+        Self {
+            inner: Rc::new(RefCell::new(inner)),
+            shape: shape.to_vec(),
+            stride: new_strides,
+            device: device,
+        }
+    }
+
+    pub(crate) fn is_contiguous(&self) -> bool {
+        let mut expected = 1usize;
+        for d in (0..self.shape.len()).rev() {
+            if self.stride[d] != expected {
+                return false;
+            }
+            expected *= self.shape[d];
+        }
+        true
+    }
+
+    /// Add a `Vec<f64>` value to the gradient inside the `TensorImpl`.
+    pub(crate) fn add_to_grad(&self, data: Vec<f64>) {
+        let mut t: std::cell::RefMut<'_, TensorImpl> = self.inner.borrow_mut();
+        let data = t
+            .grad
+            .clone()
+            .unwrap()
+            .iter()
+            .zip(data)
+            .map(|(a, b)| a + b)
+            .collect();
+        t.grad = Some(Storage::new(data, self.device.clone()));
     }
 
     /// Returns the gradient vector.
     pub fn grad(&self) -> Option<Vec<f64>> {
-        self.inner.borrow().grad.clone()
+        match &self.inner.borrow().grad {
+            Some(g) => Some(g.to_vec()),
+            None => None,
+        }
     }
 
     /// Replace current data inside the tensor with new `data`
     pub(crate) fn set_data(&self, data: Vec<f64>) {
-        self.inner.borrow_mut().data = data;
+        self.inner.borrow_mut().data.replace_data(data);
     }
 
     /// Powers the `Tensor`
@@ -474,10 +577,11 @@ impl Tensor {
     /// Accepts `n` integer in which the `Tensor` will be powered.
     ///
     /// For backpropagation it stores the `n` inside the `Op::Pow(n)`.
-    pub fn pow(self, n: i32) -> Tensor {
-        let data = self.item().iter().map(|a| a.powi(n)).collect::<Vec<f64>>();
+    pub fn pow(&self, n: i32) -> Self {
+        let data = self.data().iter().map(|a| a.powi(n)).collect::<Vec<f64>>();
         let shape = self.shape();
-        let inner = TensorData::from_op(data, vec![self], Op::Pow(n));
+        let device = self.device;
+        let inner = TensorImpl::from_op(data, vec![self.clone()], Op::Pow(n), device);
         Self::new(inner, &shape)
     }
 
@@ -536,6 +640,8 @@ impl Tensor {
             }
         }
 
+        let device = a.device;
+
         let mut mask = vec![0; a.shape.len()];
         let mut data = vec![0.0; a.length()];
         // iterate over storage data
@@ -572,8 +678,46 @@ impl Tensor {
             }
         }
         let shape = a.shape();
-        let inner = TensorData::from_op(data, vec![a, b], op);
+        let inner = TensorImpl::from_op(data, vec![a, b], op, device);
         Self::new(inner, &shape)
+    }
+
+    #[cfg(feature = "cuda")]
+    pub fn cuda(&self) -> Tensor {
+        let inner = self.inner.borrow();
+
+        let new_inner = TensorImpl {
+            data: inner.data.to_cuda(),
+            grad: inner.grad.as_ref().map(|g| g.to_cuda()),
+            _prev: inner._prev.clone(),
+            _op: inner._op.clone(),
+        };
+
+        Tensor {
+            inner: Rc::new(RefCell::new(new_inner)),
+            shape: self.shape.clone(),
+            stride: self.stride.clone(),
+            device: Device::CUDA,
+        }
+    }
+
+    pub fn cpu(&self) -> Tensor {
+        match self.device {
+            Device::CPU => self.to_owned(),
+            #[cfg(feature = "cuda")]
+            Device::CUDA => {
+                let new_storage = self.inner.borrow().data.to_cpu();
+                let mut new_data = TensorImpl::from_f64(vec![]);
+                new_data.data = new_storage;
+                new_data.grad = self.inner.borrow().grad.clone();
+                Self {
+                    inner: Rc::new(RefCell::new(new_data)),
+                    shape: self.shape.clone(),
+                    stride: self.stride.clone(),
+                    device: Device::CPU,
+                }
+            }
+        }
     }
 
     /// Converts the tensor to a `String`, so that it can be printed.
@@ -605,7 +749,7 @@ impl Tensor {
         let conv = len / dim;
         // the length of shape vector
         let shape_size = self.shape().len();
-        let item = self.item();
+        let item = self.data();
         // denote the start of the dimension
         let mut result = String::from("[");
         // iterate over the dimension => print a vector
@@ -728,12 +872,12 @@ impl Tensor {
             for t in tensors {
                 let slice_len = t.shape[dim] * inner;
                 let offset = o * slice_len;
-                let items = t.item();
+                let items = t.data();
                 data.extend_from_slice(&items[offset..offset + slice_len]);
             }
         }
 
-        let inner_data = TensorData::from_f64(data);
+        let inner_data = TensorImpl::from_f64(data);
         Tensor::new(inner_data, &out_shape)
     }
 }
@@ -779,14 +923,13 @@ impl Neg for Tensor {
 }
 
 macro_rules! impl_scalar_op {
-    ($trait:ident, $method:ident, $op:tt, $($t:ty),+) => {
+    ($trait:ident, $method:ident, $expr:expr, $($t:ty),+) => {
         $(
             impl $trait<$t> for Tensor {
                 type Output = Tensor;
+
                 fn $method(self, rhs: $t) -> Self::Output {
-                    for i in 0..self.length() {
-                        self.inner.borrow_mut().data[i] $op rhs as f64;
-                    }
+                    self.inner.borrow_mut().data.map_inplace(|x| $expr(x, rhs as f64));
                     self
                 }
             }
@@ -794,10 +937,10 @@ macro_rules! impl_scalar_op {
     };
 }
 
-impl_scalar_op!(Add, add, +=, i32, i64, f32, f64, usize);
-impl_scalar_op!(Sub, sub, -=, i32, i64, f32, f64, usize);
-impl_scalar_op!(Mul, mul, *=, i32, i64, f32, f64, usize);
-impl_scalar_op!(Div, div, /=, i32, i64, f32, f64, usize);
+impl_scalar_op!(Add, add, |x: f64, y: f64| x + y, i32, i64, f32, f64, usize);
+impl_scalar_op!(Sub, sub, |x: f64, y: f64| x - y, i32, i64, f32, f64, usize);
+impl_scalar_op!(Mul, mul, |x: f64, y: f64| x * y, i32, i64, f32, f64, usize);
+impl_scalar_op!(Div, div, |x: f64, y: f64| x / y, i32, i64, f32, f64, usize);
 
 impl Display for Tensor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

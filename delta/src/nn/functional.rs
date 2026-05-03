@@ -1,18 +1,23 @@
-use crate::{Tensor, op::Op, tensor_data::TensorData};
+use crate::{Tensor, op::Op, tensor_impl::TensorImpl};
 
 pub fn relu(x: Tensor) -> Tensor {
-    let mut data = x.item();
+    let mut data = x.data();
     for item in data.iter_mut() {
         *item = if *item > 0.0 { *item } else { 0.0 }
     }
     let shape = x.shape();
-    let inner = TensorData::from_op(data, vec![x], Op::ReLU);
+    let inner = TensorImpl::from_op(data, vec![x.clone()], Op::ReLU, x.device);
     Tensor::new(inner, &shape)
 }
 
 pub fn sigmoid(x: Tensor) -> Tensor {
     let data = ((-x.clone()).exp() + 1.0 as f64).pow(-1);
-    let inner = TensorData::from_op(data.item(), vec![x.clone()], Op::Sigmoid(x));
+    let inner = TensorImpl::from_op(
+        data.data(),
+        vec![x.clone()],
+        Op::Sigmoid(x.clone()),
+        x.device,
+    );
     Tensor::new(inner, &data.shape)
 }
 
@@ -26,7 +31,7 @@ pub fn softmax(x: Tensor, dim: isize) -> Tensor {
     } else {
         dim as usize
     };
-    
+
     let mut shape2 = shape.clone();
     assert_eq!(
         dim,
@@ -34,7 +39,7 @@ pub fn softmax(x: Tensor, dim: isize) -> Tensor {
         "Softmax for dimensions other than the last one is not supported."
     );
     let mut result = vec![0.0; x.length()];
-    let data = x.item();
+    let data = x.data();
     // get batch dimensions if they exist
     let mut batches: Vec<usize> = vec![];
     for i in 2..shape.len() {
@@ -59,6 +64,11 @@ pub fn softmax(x: Tensor, dim: isize) -> Tensor {
         }
     }
     // create new tensor
-    let inner = TensorData::from_op(result, vec![x.clone()], Op::Softmax(x, dim));
+    let inner = TensorImpl::from_op(
+        result,
+        vec![x.clone()],
+        Op::Softmax(x.clone(), dim),
+        x.device,
+    );
     Tensor::new(inner, &shape)
 }

@@ -1,4 +1,5 @@
-mod product;
+mod cross;
+mod matmul;
 
-pub use product::cross;
-pub use product::matmul;
+pub use cross::cross;
+pub use matmul::matmul;

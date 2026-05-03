@@ -17,12 +17,25 @@ pub struct PyTensor {
 
 #[pymethods]
 impl PyTensor {
-
     #[allow(non_snake_case)]
     #[getter]
     fn T(&self) -> PyResult<Self> {
         Ok(Self {
             inner: self.inner.t(),
+        })
+    }
+
+    #[pyo3(signature = ())]
+    fn t(&self) -> PyResult<Self> {
+        Ok(Self {
+            inner: self.inner.t(),
+        })
+    }
+
+    #[pyo3(signature = (dim0, dim1))]
+    fn transpose(&self, dim0: usize, dim1: usize) -> PyResult<Self> {
+        Ok(Self {
+            inner: self.inner.transpose(dim0, dim1),
         })
     }
 
@@ -45,8 +58,8 @@ impl PyTensor {
         self.inner.storage()
     }
 
-    fn item(&self) -> Vec<f64> {
-        self.inner.item()
+    fn data(&self) -> Vec<f64> {
+        self.inner.data()
     }
 
     #[getter]
@@ -69,11 +82,54 @@ impl PyTensor {
         })
     }
 
+    #[pyo3(signature = (*shape))]
+    fn view(&self, shape: &Bound<'_, PyTuple>) -> PyResult<Self> {
+        let obj = if shape.len() == 1 {
+            shape.get_item(0)?
+        } else {
+            shape.as_any().clone()
+        };
+
+        let shape = parse_shape(&obj, self.inner.length())?;
+
+        Ok(Self {
+            inner: self.inner.view(&shape),
+        })
+    }
+
     #[pyo3(signature = (dim=None))]
     fn squeeze(&self, dim: Option<Vec<usize>>) -> PyResult<Self> {
         let dim = dim.unwrap_or_default();
         Ok(Self {
             inner: self.inner.squeeze(&dim),
+        })
+    }
+
+    #[pyo3(signature = (dim))]
+    fn unsqueeze(&self, dim: usize) -> PyResult<Self> {
+        Ok(Self {
+            inner: self.inner.unsqueeze(dim),
+        })
+    }
+
+    #[pyo3(signature = ())]
+    fn exp(&self) -> PyResult<Self> {
+        Ok(Self {
+            inner: self.inner.exp(),
+        })
+    }
+
+    #[pyo3(signature = (shape))]
+    fn expand(&self, shape: Vec<usize>) -> PyResult<Self> {
+        Ok(Self {
+            inner: self.inner.expand(&shape),
+        })
+    }
+
+    #[pyo3(signature = ())]
+    fn contiguous(&self) -> PyResult<Self> {
+        Ok(Self {
+            inner: self.inner.contiguous(),
         })
     }
 
@@ -106,6 +162,27 @@ impl PyTensor {
     fn mean(&self, dim: Option<usize>, keepdim: bool) -> Self {
         Self {
             inner: self.inner.mean(dim, keepdim),
+        }
+    }
+
+    #[pyo3(signature = (n))]
+    fn pow(&self, n: i32) -> PyResult<Self> {
+        Ok(Self {
+            inner: self.inner.pow(n),
+        })
+    }
+
+    #[cfg(feature = "cuda")]
+    fn cpu(&self) -> Self {
+        Self {
+            inner: self.inner.cpu(),
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    fn cuda(&self) -> Self {
+        Self {
+            inner: self.inner.cuda(),
         }
     }
 

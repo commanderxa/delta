@@ -61,7 +61,7 @@ fn main() {
             loss.backward();
             optim.step();
 
-            losses += loss.item()[0];
+            losses += loss.data()[0];
         }
         println!(
             "Epoch: {epoch}/{epochs} | loss: {:.10}",
@@ -77,7 +77,7 @@ fn main() {
         let out = mlp.forward(args, kwargs).unwrap_tensor();
         let loss = criterion.measure(out.clone(), y.clone());
         loss.backward();
-        training_res.push((out.item()[0], y.item()[0]))
+        training_res.push((out.data()[0], y.data()[0]))
     }
 
     for (x, y) in test_data.iter().zip(test_targets.clone()) {
@@ -85,7 +85,7 @@ fn main() {
         let out = mlp.forward(args, kwargs).unwrap_tensor();
         let loss = criterion.measure(out.clone(), y.clone());
         loss.backward();
-        test_res.push((out.item()[0], y.item()[0]))
+        test_res.push((out.data()[0], y.data()[0]))
     }
 
     println!("TRAINING RESULT: {:#?}", training_res);

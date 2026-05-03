@@ -11,8 +11,11 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
-dependencies = ["ipykernel >= 7.2.0"]
+dependencies = [
+    "maturin",
+]
 
 [tool.maturin]
 python-source = "python"
 module-name = "delta._delta"
+features = ["cuda"]
