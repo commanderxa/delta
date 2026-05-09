@@ -22,7 +22,12 @@ rand = "0.10.1"
 cudarc = { version = "0.19", optional = true, features = [
     "cublas",
     "cuda-version-from-build-system",
+    "f8",
+    "f16",
 ] }
+half = { version = "2.7.1", features = ["alloc", "num-traits"] }
+float8 = { version = "0.7.0", features = ["num-traits"] }
+num-traits = { version = "0.2.19", default-features = false }
 
 [lib]
 name = "delta"

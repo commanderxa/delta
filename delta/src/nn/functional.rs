@@ -1,27 +1,32 @@
-use crate::{Tensor, op::Op, tensor_impl::TensorImpl};
+use crate::{
+    Tensor, TensorImpl,
+    op::Op,
+    tensor::element::{TensorElement, TensorFloat, TensorNum},
+};
 
-pub fn relu(x: Tensor) -> Tensor {
+pub fn relu<T: TensorNum>(x: Tensor<T>) -> Tensor<T> {
     let mut data = x.data();
     for item in data.iter_mut() {
-        *item = if *item > 0.0 { *item } else { 0.0 }
+        *item = if *item > T::zero() { *item } else { T::zero() }
     }
     let shape = x.shape();
-    let inner = TensorImpl::from_op(data, vec![x.clone()], Op::ReLU, x.device);
-    Tensor::new(inner, &shape)
+    let inner = TensorImpl::from_op(data, &shape, vec![x.clone()], Op::ReLU, x.device);
+    Tensor::new(inner)
 }
 
-pub fn sigmoid(x: Tensor) -> Tensor {
-    let data = ((-x.clone()).exp() + 1.0 as f64).pow(-1);
+pub fn sigmoid<T: TensorFloat>(x: Tensor<T>) -> Tensor<T> {
+    let data = ((-x.clone()).exp() + <T as TensorElement>::one()).pow(-1);
     let inner = TensorImpl::from_op(
         data.data(),
+        &data.shape(),
         vec![x.clone()],
         Op::Sigmoid(x.clone()),
         x.device,
     );
-    Tensor::new(inner, &data.shape)
+    Tensor::new(inner)
 }
 
-pub fn softmax(x: Tensor, dim: isize) -> Tensor {
+pub fn softmax<T: TensorFloat>(x: Tensor<T>, dim: isize) -> Tensor<T> {
     assert!(dim >= -1, "cat: `dim` cannot be negative integer");
 
     let shape = x.shape();
@@ -38,7 +43,7 @@ pub fn softmax(x: Tensor, dim: isize) -> Tensor {
         shape.len() - 1,
         "Softmax for dimensions other than the last one is not supported."
     );
-    let mut result = vec![0.0; x.length()];
+    let mut result = vec![<T as TensorElement>::zero(); x.length()];
     let data = x.data();
     // get batch dimensions if they exist
     let mut batches: Vec<usize> = vec![];
@@ -56,19 +61,28 @@ pub fn softmax(x: Tensor, dim: isize) -> Tensor {
         for i in 0..m {
             let _x = &data[(k * m + i * n)..(k * m + i * n + n)];
             // do operations
-            let max_x = _x.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-            let exp_x: Vec<f64> = _x.iter().map(|&xi| (xi - max_x).exp()).collect();
-            let sum_exp_x: f64 = exp_x.iter().sum();
+            let max_x = _x
+                .iter()
+                .cloned()
+                .fold(<T as TensorFloat>::neg_infinity(), |a, b| {
+                    if a > b { a } else { b }
+                });
+            let exp_x: Vec<T> = _x.iter().copied().map(|xi| (xi - max_x).exp()).collect();
+            let sum_exp_x: T = exp_x
+                .iter()
+                .copied()
+                .fold(<T as TensorElement>::zero(), |acc, x| acc + x);
             result[(k * m + i * n)..(k * m + i * n + n)]
-                .copy_from_slice(&exp_x.iter().map(|&ei| ei / sum_exp_x).collect::<Vec<f64>>());
+                .copy_from_slice(&exp_x.iter().map(|&ei| ei / sum_exp_x).collect::<Vec<T>>());
         }
     }
     // create new tensor
     let inner = TensorImpl::from_op(
         result,
+        &shape,
         vec![x.clone()],
         Op::Softmax(x.clone(), dim),
         x.device,
     );
-    Tensor::new(inner, &shape)
+    Tensor::new(inner)
 }

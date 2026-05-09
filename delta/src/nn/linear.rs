@@ -21,7 +21,7 @@ use crate::{
 // #[derive(Module, Clone)]
 pub struct Linear {
     // #[param]
-    pub weights: Parameter,
+    pub weights: Parameter<f32>,
 }
 
 impl Linear {
@@ -29,22 +29,26 @@ impl Linear {
         if bias {
             in_features += 1;
         }
-        let _weights = Parameter(crate::randn(&[in_features, out_features]));
+        let _weights = Parameter(crate::randn::<f32>(&[in_features, out_features]));
         Self { weights: _weights }
     }
 }
 
-impl Module for Linear {
+impl Module<f32> for Linear {
     fn module_name(&self) -> String {
         "Linear".to_owned()
     }
 
-    fn parameters(&self) -> Vec<Parameter> {
+    fn parameters(&self) -> Vec<Parameter<f32>> {
         let parameters = vec![self.weights.clone()];
         parameters
     }
 
-    fn forward(&self, args: Vec<IValue>, _kwargs: HashMap<String, IValue>) -> IValue {
+    fn forward(
+        &self,
+        args: Vec<IValue<f32>>,
+        _kwargs: HashMap<String, IValue<f32>>,
+    ) -> IValue<f32> {
         let x = match &args[0] {
             IValue::Tensor(t) => t.clone(),
             _ => panic!("Linear expects a Tensor as first argument"),
@@ -53,7 +57,7 @@ impl Module for Linear {
         let mut ones_shape = x.shape();
         let _ = ones_shape.pop();
         ones_shape.push(1);
-        let x = Tensor::cat(&[x, crate::ones(&ones_shape)], 1);
+        let x = Tensor::cat(&[x, crate::ones::<f32>(&ones_shape)], 1);
         let x = linalg::matmul(x, weights.0);
         IValue::Tensor(x)
     }

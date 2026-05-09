@@ -1,4 +1,4 @@
-use crate::{Tensor, op::Op, tensor_impl::TensorImpl};
+use crate::{Tensor, TensorImpl, op::Op, tensor::{cast::Cast, element::{TensorElement, TensorFloat, TensorNum}}};
 
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub enum Reduction {
@@ -18,19 +18,26 @@ impl MSELoss {
         }
     }
 
-    pub fn measure(&self, a: Tensor, b: Tensor) -> Tensor {
-        let t = (a - b).pow(2) * 0.5 as f64;
+    pub fn measure<T: TensorNum + Cast<U>, U: TensorFloat>(&self, a: Tensor<T>, b: Tensor<T>) -> Tensor<U> {
+        let t = (a - b).cast::<U>().pow(2) * U::from(0.5).unwrap();
         let a = t.data();
-        let t_len = t.length() as f64;
-        let mut s = 0.0;
+        let t_len = t.length();
+        let u_t_len = U::from(t_len).unwrap();
+        let mut s = <U as TensorElement>::zero();
         if let Some(reduction) = self.reduction {
-            s = a.iter().sum::<f64>();
+            s = a.iter().fold(<U as TensorElement>::zero(), |acc, x| acc + *x);
             if reduction == Reduction::MEAN {
-                s /= t_len;
+                s = s / u_t_len;
             }
         }
-        let inner = TensorImpl::from_op(vec![s], vec![t.clone()], Op::MSE(t_len as usize), t.device);
-        Tensor::new(inner, &[1])
+        let inner = TensorImpl::from_op(
+            vec![s],
+            &[1],
+            vec![t.clone()],
+            Op::MSE(t_len),
+            t.device,
+        );
+        Tensor::new(inner)
     }
 }
 
@@ -39,7 +46,6 @@ impl Default for MSELoss {
         Self::new(Some(Reduction::MEAN))
     }
 }
-
 
 #[derive(Clone)]
 pub struct CrossEntropyLoss {
@@ -53,19 +59,8 @@ impl CrossEntropyLoss {
         }
     }
 
-    pub fn measure(&self, a: Tensor, b: Tensor) -> Tensor {
-        let t = (a - b).pow(2) * 0.5 as f64;
-        let a = t.data();
-        let t_len = t.length() as f64;
-        let mut s = 0.0;
-        if let Some(reduction) = self.reduction {
-            s = a.iter().sum::<f64>();
-            if reduction == Reduction::MEAN {
-                s /= t_len;
-            }
-        }
-        let inner = TensorImpl::from_op(vec![s], vec![t.clone()], Op::MSE(t_len as usize), t.device);
-        Tensor::new(inner, &[1])
+    pub fn measure<T: TensorNum>(&self, a: Tensor<T>, b: Tensor<T>) -> Tensor<T> {
+        todo!()
     }
 }
 

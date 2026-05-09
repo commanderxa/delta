@@ -1,10 +1,9 @@
-use crate::Tensor;
+use crate::{Tensor, tensor::element::TensorElement};
 
-#[derive(Debug)]
-pub enum IValue {
-    Tensor(Tensor),
-    TensorList(Vec<Tensor>),
-    Tuple(Vec<IValue>),
+pub enum IValue<T: TensorElement> {
+    Tensor(Tensor<T>),
+    TensorList(Vec<Tensor<T>>),
+    Tuple(Vec<IValue<T>>),
     Int(i64),
     Float(f64),
     Bool(bool),
@@ -12,9 +11,9 @@ pub enum IValue {
     None,
 }
 
-impl IValue {
+impl<T: TensorElement> IValue<T> {
     /// Unwraps the IValue as a Tensor, panics if it is not a Tensor variant
-    pub fn unwrap_tensor(self) -> Tensor {
+    pub fn unwrap_tensor(self) -> Tensor<T> {
         match self {
             IValue::Tensor(t) => t,
             other => panic!("expected Tensor, got {:?}", other),
@@ -22,7 +21,7 @@ impl IValue {
     }
 
     /// Unwraps the IValue as a tuple (Vec<IValue>), panics otherwise
-    pub fn unwrap_tuple(self) -> Vec<IValue> {
+    pub fn unwrap_tuple(self) -> Vec<IValue<T>> {
         match self {
             IValue::Tuple(v) => v,
             other => panic!("expected Tuple, got {:?}", other),
@@ -30,7 +29,7 @@ impl IValue {
     }
 
     /// Unwraps the Tensor as a tensor list (Vec<Tensor>), panics otherwise
-    pub fn unwrap_list(self) -> Vec<Tensor> {
+    pub fn unwrap_list(self) -> Vec<Tensor<T>> {
         match self {
             IValue::TensorList(v) => v,
             other => panic!("expected Tuple, got {:?}", other),
@@ -180,44 +179,67 @@ macro_rules! ivalue {
     };
 }
 
-impl From<Tensor> for IValue {
-    fn from(t: Tensor) -> Self {
+impl<T: TensorElement> From<Tensor<T>> for IValue<T> {
+    fn from(t: Tensor<T>) -> Self {
         IValue::Tensor(t)
     }
 }
 
-impl From<Vec<Tensor>> for IValue {
-    fn from(v: Vec<Tensor>) -> Self {
+impl<T: TensorElement> From<Vec<Tensor<T>>> for IValue<T> {
+    fn from(v: Vec<Tensor<T>>) -> Self {
         IValue::TensorList(v)
     }
 }
 
-impl From<i64> for IValue {
+impl<T: TensorElement> From<i64> for IValue<T> {
     fn from(i: i64) -> Self {
         IValue::Int(i)
     }
 }
 
-impl From<f64> for IValue {
+impl<T: TensorElement> From<f64> for IValue<T> {
     fn from(f: f64) -> Self {
         IValue::Float(f)
     }
 }
 
-impl From<bool> for IValue {
+impl<T: TensorElement> From<bool> for IValue<T> {
     fn from(b: bool) -> Self {
         IValue::Bool(b)
     }
 }
 
-impl From<String> for IValue {
+impl<T: TensorElement> From<String> for IValue<T> {
     fn from(s: String) -> Self {
         IValue::Str(s)
     }
 }
 
-impl From<&str> for IValue {
+impl<T: TensorElement> From<&str> for IValue<T> {
     fn from(s: &str) -> Self {
         IValue::Str(s.to_owned())
+    }
+}
+
+use std::fmt::{self, Debug};
+
+impl<T: TensorElement> Debug for IValue<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IValue::Tensor(t) => write!(f, "Tensor({:?})", t.dtype()),
+            IValue::TensorList(ts) => f
+                .debug_list()
+                .entries(ts.iter().map(|t| format!("Tensor({:?})", t.dtype())))
+                .finish(),
+            IValue::Tuple(ts) => f
+                .debug_tuple("Tuple")
+                .field(&ts.iter().map(|iv| format!("{:?}", iv)).collect::<Vec<_>>())
+                .finish(),
+            IValue::Int(n) => write!(f, "Int({n})"),
+            IValue::Float(n) => write!(f, "Float({n})"),
+            IValue::Bool(b) => write!(f, "Bool({b})"),
+            IValue::Str(s) => f.debug_tuple("Str").field(s).finish(),
+            IValue::None => write!(f, "None"),
+        }
     }
 }

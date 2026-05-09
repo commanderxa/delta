@@ -1,4 +1,4 @@
-use crate::{Tensor, op::Op, tensor_impl::TensorImpl};
+use crate::{Tensor, TensorImpl, op::Op, tensor::element::TensorNum};
 
 /// Cross Product
 ///
@@ -7,7 +7,7 @@ use crate::{Tensor, op::Op, tensor_impl::TensorImpl};
 /// * b: `Tensor`
 ///
 /// Performs the cross product of 3-dimensional vectors.
-pub fn cross(a: Tensor, b: Tensor) -> Tensor {
+pub fn cross<T: TensorNum>(a: Tensor<T>, b: Tensor<T>) -> Tensor<T> {
     // check the dimensions
     assert_eq!(
         a.shape().len(),
@@ -30,13 +30,13 @@ pub fn cross(a: Tensor, b: Tensor) -> Tensor {
     let mut a = a;
     let mut b = b;
     // check whether to expand any of variables
-    if a.shape != b.shape {
+    if a.shape() != b.shape() {
         // if `a` tensor is bigger => expand `b`
         // else expand `a`
         if a.length() > b.length() {
-            b = b.expand(&a.shape);
+            b = b.expand(&a.shape());
         } else {
-            a = a.expand(&b.shape);
+            a = a.expand(&b.shape());
         }
     }
 
@@ -44,7 +44,7 @@ pub fn cross(a: Tensor, b: Tensor) -> Tensor {
     let _a = a.data();
     let _b = b.data();
     // result init
-    let mut result = vec![0.0; a.length()];
+    let mut result = vec![T::zero(); a.length()];
     let mut i: usize = 0;
     while i < (a.length() - 2) {
         result[i] = (_a[i + 1] * _b[i + 2]) - (_a[i + 2] * _b[i + 1]);
@@ -55,6 +55,6 @@ pub fn cross(a: Tensor, b: Tensor) -> Tensor {
     let shape = a.shape();
     // computation
     // construct a Tensor
-    let inner = TensorImpl::from_op(result, vec![a, b], Op::Cross, device);
-    Tensor::new(inner, &shape)
+    let inner = TensorImpl::from_op(result, &shape, vec![a, b], Op::Cross, device);
+    Tensor::new(inner)
 }

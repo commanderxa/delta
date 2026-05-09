@@ -8,14 +8,15 @@ pub mod ivalue;
 pub mod linalg;
 pub mod nn;
 mod op;
-pub mod operations;
 pub mod optim;
-pub mod storage;
 pub mod tensor;
-mod tensor_impl;
-pub mod tensor_init;
 
 // define short paths
-pub use operations::*;
 pub use tensor::Tensor;
-pub use tensor_init::*;
+pub use tensor::dtype::*;
+pub use tensor::init::*;
+pub use tensor::operations::*;
+
+// short paths for crate-wide used
+pub(crate) use tensor::impl_::TensorImpl;
+pub(crate) use tensor::storage::Storage;

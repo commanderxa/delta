@@ -1,11 +1,14 @@
+pub mod init;
+
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyList, PyTuple};
 
 use delta::Tensor;
 
-pub fn register_submodule(_: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
+pub fn register_submodule(_py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
     parent.add_class::<PyTensor>()?;
+    init::register_submodule(_py, parent)?;
     Ok(())
 }
 
@@ -116,6 +119,13 @@ impl PyTensor {
     fn exp(&self) -> PyResult<Self> {
         Ok(Self {
             inner: self.inner.exp(),
+        })
+    }
+
+    #[pyo3(signature = ())]
+    fn log(&self) -> PyResult<Self> {
+        Ok(Self {
+            inner: self.inner.log(),
         })
     }
 
@@ -276,6 +286,10 @@ impl PyTensor {
         PyTensor {
             inner: delta::linalg::matmul(self.inner.clone(), other.inner.clone()),
         }
+    }
+
+    fn __eq__(&self, other: &PyTensor) -> bool {
+        self.inner == other.inner
     }
 }
 

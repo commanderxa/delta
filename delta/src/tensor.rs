@@ -1,48 +1,53 @@
-use std::{
-    cell::RefCell,
-    f64::consts::E,
-    fmt::Display,
-    ops::{Add, Div, Mul, Neg, Range, Sub},
-    rc::Rc,
-};
+mod binary_ops_kernel;
+pub(crate) mod cast;
+pub mod dtype;
+pub(crate) mod element;
+pub(crate) mod impl_;
+pub mod init;
+pub mod operations;
+pub(crate) mod promote_primitives;
+pub(crate) mod storage;
+
+use std::{cell::RefCell, f64::consts::E, fmt::Display, ops::Range, rc::Rc};
 
 use crate::{
-    backward::Backward, device::Device, op::Op, storage::Storage, tensor_impl::TensorImpl,
+    DType, Storage,
+    backward::Backward,
+    device::Device,
+    op::Op,
+    tensor::{
+        cast::Cast,
+        element::{TensorElement, TensorFloat},
+        impl_::TensorImpl,
+    },
 };
 
-#[derive(Clone, Debug, PartialEq)]
+type TensorImplRef<T> = Rc<RefCell<TensorImpl<T>>>;
+
+#[derive(Clone, Debug)]
 /// # Tensor
 ///
 /// ### Holds the reference to the inner data inside.
 ///
 /// See the documentation for `TensorImpl`.
-pub struct Tensor {
-    pub(crate) inner: Rc<RefCell<TensorImpl>>,
-    pub shape: Vec<usize>,
-    pub stride: Vec<usize>,
+pub struct Tensor<T: TensorElement> {
+    pub(crate) inner: TensorImplRef<T>,
     pub device: Device,
 }
 
-impl Tensor {
+impl<T: TensorElement> Tensor<T> {
     /// Creates a new instance of a `Tensor`.
-    pub(crate) fn new(inner: TensorImpl, shape: &[usize]) -> Self {
-        let mut stride = vec![1; shape.len()];
-        // compute stride
-        for i in (0..shape.len() - 1).rev() {
-            stride[i] = shape[i + 1] * stride[i + 1];
-        }
+    pub(crate) fn new(inner: TensorImpl<T>) -> Self {
         let device = inner.device();
         Self {
             inner: Rc::new(RefCell::new(inner)),
-            shape: shape.to_vec(),
-            stride,
             device: device,
         }
     }
 
     /// Returns the shape of the tensor as vector.
     pub(crate) fn shape(&self) -> Vec<usize> {
-        self.shape.clone()
+        self.inner.borrow().shape.clone()
     }
 
     /// Returns the total length of the vector. It obtains the length by taking
@@ -54,13 +59,12 @@ impl Tensor {
         self.shape().iter().product()
     }
 
-    /// Returns the data of `Tensor` as it is stored.
-    pub fn storage(&self) -> Vec<f64> {
-        self.inner.borrow().data.to_vec().clone()
+    pub(crate) fn storage(&self) -> Storage<T> {
+        self.inner.borrow().data.clone()
     }
 
-    pub(crate) fn get_data_storage(&self) -> Storage {
-        self.inner.borrow().data.clone()
+    pub fn dtype(&self) -> DType {
+        self.inner.borrow().dtype()
     }
 
     /// Fills the given empty tensor with a values with an inputted range. It
@@ -68,29 +72,28 @@ impl Tensor {
     ///
     /// E.g. if the range is (-1.0..1.0) then each value in the tensor will be
     /// between -1 and 1.
-    pub(crate) fn fill_tensor(tensor: &mut TensorImpl, range: Range<f64>) {
+    pub(crate) fn fill_tensor(tensor: &mut TensorImpl<T>, range: Range<T>)
+    where
+        T: TensorFloat,
+    {
         let len = tensor.data.len();
-        let values: Vec<f64> = (0..len)
-            .map(|_| rand::random_range(range.clone()))
-            .collect();
+        let values: Vec<T> = (0..len).map(|_| T::random_range(range.clone())).collect();
         tensor.data.replace_data(values);
-        tensor.grad = Some(Storage::CPU {
-            data: vec![0.0; len],
-        });
+        tensor.grad = Some(crate::create_grad(&tensor.shape));
     }
 
     /// Returns an owned copy of tensor strides
     pub(crate) fn stride(&self) -> Vec<usize> {
-        self.stride.clone()
+        self.inner.borrow().stride.clone()
     }
 
     /// Returns the data of the tensor.
-    pub fn data(&self) -> Vec<f64> {
-        let storage = self.storage();
+    pub fn data(&self) -> Vec<T> {
+        let storage = self.storage().to_vec();
         let stride = self.stride();
         let shape = self.shape();
         let mut mask = vec![0; shape.len()];
-        let mut data = vec![0.0; self.length()];
+        let mut data = vec![T::zero(); self.length()];
         // iterate over storage data
         for d in data.iter_mut() {
             // compute index of past position of data
@@ -121,14 +124,9 @@ impl Tensor {
     pub fn requires_grad(self, value: bool) -> Self {
         if value {
             let grad = match self.device {
-                Device::CPU => Storage::CPU {
-                    data: vec![0.0; self.length()],
-                },
+                Device::CPU => crate::create_grad(&self.shape()),
                 #[cfg(feature = "cuda")]
-                Device::CUDA => Storage::CPU {
-                    data: vec![0.0; self.length()],
-                }
-                .to_cuda(),
+                Device::CUDA => crate::create_grad(&self.shape()).cuda(),
             };
             self.inner.borrow_mut().grad = Some(grad);
         } else {
@@ -137,45 +135,46 @@ impl Tensor {
         self
     }
 
-    pub fn sum(&self, dim: Option<usize>, keepdim: bool) -> Tensor {
+    pub fn sum(&self, dim: Option<usize>, keepdim: bool) -> Tensor<T> {
         match dim {
             None => {
-                let value: f64 = self.data().iter().sum();
+                let value: T = self.data().iter().fold(T::zero(), |acc, x| acc + *x);
                 let shape = if keepdim {
-                    vec![1; self.shape.len().max(1)]
+                    vec![1; self.shape().len().max(1)]
                 } else {
                     vec![1]
                 };
                 let inner = TensorImpl::from_op(
                     vec![value],
+                    &shape,
                     vec![self.clone()],
                     Op::Sum { dim: None, keepdim },
                     self.device,
                 );
-                Tensor::new(inner, &shape)
+                Tensor::new(inner)
             }
             Some(dim) => {
-                assert!(dim < self.shape.len(), "sum: dim out of range");
+                assert!(dim < self.shape().len(), "sum: dim out of range");
 
                 let input = self.data();
-                let outer: usize = self.shape[..dim].iter().product();
-                let reduce: usize = self.shape[dim];
-                let inner: usize = self.shape[dim + 1..].iter().product();
+                let outer: usize = self.shape()[..dim].iter().product();
+                let reduce: usize = self.shape()[dim];
+                let inner: usize = self.shape()[dim + 1..].iter().product();
 
-                let mut out = vec![0.0; outer * inner];
+                let mut out = vec![T::zero(); outer * inner];
 
                 for o in 0..outer {
                     for i in 0..inner {
-                        let mut acc = 0.0;
+                        let mut acc = T::zero();
                         for r in 0..reduce {
                             let idx = o * reduce * inner + r * inner + i;
-                            acc += input[idx];
+                            acc = acc + input[idx];
                         }
                         out[o * inner + i] = acc;
                     }
                 }
 
-                let mut out_shape = self.shape.clone();
+                let mut out_shape = self.shape().clone();
                 if keepdim {
                     out_shape[dim] = 1;
                 } else {
@@ -187,6 +186,7 @@ impl Tensor {
 
                 let inner_data = TensorImpl::from_op(
                     out,
+                    &out_shape,
                     vec![self.clone()],
                     Op::Sum {
                         dim: Some(dim),
@@ -194,24 +194,26 @@ impl Tensor {
                     },
                     self.device,
                 );
-                Tensor::new(inner_data, &out_shape)
+                Tensor::new(inner_data)
             }
         }
     }
 
-    pub fn mean(&self, dim: Option<usize>, keepdim: bool) -> Tensor {
+    pub fn mean(&self, dim: Option<usize>, keepdim: bool) -> Tensor<T> {
         match dim {
             None => {
                 let n = self.length();
                 assert!(n > 0, "mean of empty tensor is undefined");
-                let value: f64 = self.data().iter().sum::<f64>() / n as f64;
+                let value: T =
+                    self.data().iter().fold(T::zero(), |acc, x| acc + *x) / T::from(n).unwrap();
                 let shape = if keepdim {
-                    vec![1; self.shape.len().max(1)]
+                    vec![1; self.shape().len().max(1)]
                 } else {
                     vec![1]
                 };
                 let inner = TensorImpl::from_op(
                     vec![value],
+                    &shape,
                     vec![self.clone()],
                     Op::Mean {
                         dim: None,
@@ -220,30 +222,30 @@ impl Tensor {
                     },
                     self.device,
                 );
-                Tensor::new(inner, &shape)
+                Tensor::new(inner)
             }
             Some(dim) => {
-                assert!(dim < self.shape.len(), "mean: dim out of range");
+                assert!(dim < self.shape().len(), "mean: dim out of range");
 
                 let input = self.data();
-                let outer: usize = self.shape[..dim].iter().product();
-                let reduce: usize = self.shape[dim];
-                let inner: usize = self.shape[dim + 1..].iter().product();
+                let outer: usize = self.shape()[..dim].iter().product();
+                let reduce: usize = self.shape()[dim];
+                let inner: usize = self.shape()[dim + 1..].iter().product();
 
-                let mut out = vec![0.0; outer * inner];
+                let mut out = vec![T::zero(); outer * inner];
 
                 for o in 0..outer {
                     for i in 0..inner {
-                        let mut acc = 0.0;
+                        let mut acc = T::zero();
                         for r in 0..reduce {
                             let idx = o * reduce * inner + r * inner + i;
-                            acc += input[idx];
+                            acc = acc + input[idx];
                         }
-                        out[o * inner + i] = acc / reduce as f64;
+                        out[o * inner + i] = acc / T::from(reduce).unwrap();
                     }
                 }
 
-                let mut out_shape = self.shape.clone();
+                let mut out_shape = self.shape().clone();
                 if keepdim {
                     out_shape[dim] = 1;
                 } else {
@@ -255,6 +257,7 @@ impl Tensor {
 
                 let inner_data = TensorImpl::from_op(
                     out,
+                    &out_shape,
                     vec![self.clone()],
                     Op::Mean {
                         dim: Some(dim),
@@ -263,7 +266,7 @@ impl Tensor {
                     },
                     self.device,
                 );
-                Tensor::new(inner_data, &out_shape)
+                Tensor::new(inner_data)
             }
         }
     }
@@ -275,11 +278,11 @@ impl Tensor {
     ///
     /// E.g. if the shape was (2, 3) it will make (3, 2).
     pub fn transpose(&self, dim0: usize, dim1: usize) -> Self {
-        let mut t = self.clone();
+        let t = self.clone();
         // transpose tensor of 2 and more dimensions
         if t.shape().len() >= 2 {
-            t.shape.swap(dim0, dim1);
-            t.stride.swap(dim0, dim1);
+            t.inner.borrow_mut().shape.swap(dim0, dim1);
+            t.inner.borrow_mut().stride.swap(dim0, dim1);
         }
         t
     }
@@ -304,8 +307,8 @@ impl Tensor {
             shape.iter().product::<usize>(),
             self.length()
         );
-        let mut t = self.clone();
-        if self.stride.iter().product::<usize>() == 0 {
+        let t = self.clone();
+        if self.stride().iter().product::<usize>() == 0 {
             panic!(
                 "view size is not compatible with size and stride of input tensor. Use .reshape(...) instead"
             );
@@ -315,8 +318,8 @@ impl Tensor {
         for i in (0..shape.len() - 1).rev() {
             stride[i] = shape[i + 1] * stride[i + 1];
         }
-        t.stride = stride;
-        t.shape = shape.to_vec();
+        t.inner.borrow_mut().stride = stride;
+        t.inner.borrow_mut().shape = shape.to_vec();
         t
     }
 
@@ -334,30 +337,30 @@ impl Tensor {
             self.length()
         );
         // if stride indicate that tensor wasn't expanded, then just `view` it
-        if self.stride.iter().product::<usize>() > 0 {
+        if self.stride().iter().product::<usize>() > 0 {
             return self.view(shape);
         }
-        let mut mask = vec![0; self.shape.len()];
-        let mut data = vec![0.0; self.length()];
+        let mut mask = vec![0; self.shape().len()];
+        let mut data = vec![T::zero(); self.length()];
         // iterate over storage data
         for d in data.iter_mut() {
             // compute index of past position of data
-            *d = self.storage()[self
-                .stride
+            *d = self.data()[self
+                .stride()
                 .iter()
                 .zip(&mask)
                 .map(|(a, b)| a * b)
                 .sum::<usize>()];
             // iterate over shape
-            for j in (0..self.shape.len()).rev() {
+            for j in (0..self.shape().len()).rev() {
                 // skip the properly filled dims
-                if self.shape[j] - 1 == mask[j] {
+                if self.shape()[j] - 1 == mask[j] {
                     continue;
                 }
                 // increment the necessary mask dim
                 mask[j] += 1;
                 // set to 0 all prevous shape dims
-                for k in ((j + 1)..self.shape.len()).rev() {
+                for k in ((j + 1)..self.shape().len()).rev() {
                     mask[k] = 0;
                 }
                 break;
@@ -368,27 +371,27 @@ impl Tensor {
         for i in (0..shape.len() - 1).rev() {
             stride[i] = shape[i + 1] * stride[i + 1];
         }
-        let mut t = self.clone();
+        let t = self.clone();
         t.inner.borrow_mut().data.replace_data(data);
-        t.shape = shape.to_vec();
-        t.stride = stride;
+        t.inner.borrow_mut().shape = shape.to_vec();
+        t.inner.borrow_mut().stride = stride;
         t
     }
 
     /// Inserts a dimension of size 1 at a specified location in shape.
     pub fn unsqueeze(&self, dim: usize) -> Self {
         assert!(
-            dim <= self.shape.len(),
+            dim <= self.shape().len(),
             "Dimension out of range (expected range of [0, {}])",
-            self.shape.len()
+            self.shape().len()
         );
-        let mut t = self.clone();
-        t.shape.insert(dim, 1);
+        let t = self.clone();
+        t.shape().insert(dim, 1);
         let mut replica = 1;
-        if dim < self.shape.len() {
-            replica = t.stride[dim];
+        if dim < self.shape().len() {
+            replica = t.stride()[dim];
         }
-        t.stride.insert(dim, replica);
+        t.inner.borrow_mut().stride.insert(dim, replica);
         t
     }
 
@@ -399,36 +402,23 @@ impl Tensor {
     ///
     /// All the specified dimensions that are more than 1 it leaves as it is.
     pub fn squeeze(&self, dim: &[usize]) -> Self {
-        let mut t = self.clone();
+        let t = self.clone();
         if dim.is_empty() {
-            for d in (0..t.shape.len()).rev() {
-                if t.shape[d] == 1 {
-                    t.shape.remove(d);
-                    t.stride.remove(d);
+            for d in (0..t.shape().len()).rev() {
+                if t.shape()[d] == 1 {
+                    t.inner.borrow_mut().shape.remove(d);
+                    t.inner.borrow_mut().stride.remove(d);
                 }
             }
         } else {
             for d in (0..dim.len()).rev() {
-                if t.shape[d] == 1 {
-                    t.shape.remove(d);
-                    t.stride.remove(d);
+                if t.shape()[d] == 1 {
+                    t.inner.borrow_mut().shape.remove(d);
+                    t.inner.borrow_mut().stride.remove(d);
                 }
             }
         }
         t
-    }
-
-    /// Exponents each value of the `Tensor`.
-    ///
-    /// `exp(x)` => `e^(x)`.
-    pub fn exp(&self) -> Tensor {
-        let mut data = self.data();
-        for item in data.iter_mut() {
-            *item = E.powf(*item);
-        }
-        let inner =
-            TensorImpl::from_op(data, vec![self.clone()], Op::Exp(self.clone()), self.device);
-        Tensor::new(inner, &self.shape)
     }
 
     /// Exapnds tesnor along its dimensions.
@@ -441,14 +431,14 @@ impl Tensor {
             self.shape().len(),
             new_shape.len()
         );
-        let mut t = self.clone();
+        let t = self.clone();
         let mut _old_shape = self.shape();
         // check if batch dims have to be added in th front
         let dims_to_add = new_shape.len() - _old_shape.len();
         let mut old_shape: Vec<usize> = vec![1; dims_to_add];
         // push neccessary front batch dims
         for _ in 0..dims_to_add {
-            t.stride.insert(0, t.stride[0]);
+            t.inner.borrow_mut().stride.insert(0, t.stride()[0]);
         }
         // append the rest of the shape
         old_shape.append(&mut _old_shape);
@@ -463,13 +453,39 @@ impl Tensor {
             );
             // set expanded dim strides to 0
             if old_shape[i] == 1 && new_shape[i] > 1 {
-                t.stride[i] = 0;
+                t.inner.borrow_mut().stride[i] = 0;
             }
         }
 
         // change tensor properties
-        t.shape = new_shape.to_vec();
+        t.inner.borrow_mut().shape = new_shape.to_vec();
         t
+    }
+
+    /// Exponents each value of the `Tensor`.
+    ///
+    /// `exp(x)` => `e^(x)`.
+    pub fn exp<U: TensorFloat>(&self) -> Tensor<U>
+    where
+        T: Cast<U>,
+    {
+        let mut data = self.data();
+        let mut data: Vec<U> = self
+            .data()
+            .into_iter()
+            .map(|x| {
+                let u: U = x.cast();
+                u.exp()
+            })
+            .collect();
+        let inner = TensorImpl::from_op(
+            data,
+            &self.shape(),
+            vec![self.clone()],
+            Op::Exp(self.clone()),
+            self.device,
+        );
+        Tensor::new(inner)
     }
 
     pub fn contiguous(&self) -> Self {
@@ -478,13 +494,13 @@ impl Tensor {
             return self.clone();
         }
 
-        let old_data = self.cpu().get_data_storage();
+        let old_data = self.cpu().storage();
         let old_data = old_data.as_cpu();
         let shape = self.shape();
         let strides = self.stride();
 
         let total: usize = shape.iter().product();
-        let mut new_data = vec![0.0f64; total];
+        let mut new_data = vec![T::zero(); total];
 
         for flat_idx in 0..total {
             // flat index -> nd index in current shape
@@ -514,12 +530,13 @@ impl Tensor {
         let device = self.device;
 
         let inner = match device {
-            Device::CPU => TensorImpl::from_f64(new_data),
+            Device::CPU => TensorImpl::from_slice(&new_data, &shape),
             #[cfg(feature = "cuda")]
             Device::CUDA => {
                 let _inner = &self.inner.borrow();
                 TensorImpl::from_cuda(
                     Storage::to_cuda_slice(&new_data),
+                    &shape,
                     _inner._prev.clone(),
                     _inner._op.clone(),
                 )
@@ -528,63 +545,215 @@ impl Tensor {
 
         Self {
             inner: Rc::new(RefCell::new(inner)),
-            shape: shape.to_vec(),
-            stride: new_strides,
             device: device,
         }
     }
 
     pub(crate) fn is_contiguous(&self) -> bool {
         let mut expected = 1usize;
-        for d in (0..self.shape.len()).rev() {
-            if self.stride[d] != expected {
+        for d in (0..self.shape().len()).rev() {
+            if self.stride()[d] != expected {
                 return false;
             }
-            expected *= self.shape[d];
+            expected *= self.shape()[d];
         }
         true
     }
 
-    /// Add a `Vec<f64>` value to the gradient inside the `TensorImpl`.
-    pub(crate) fn add_to_grad(&self, data: Vec<f64>) {
-        let mut t: std::cell::RefMut<'_, TensorImpl> = self.inner.borrow_mut();
-        let data = t
-            .grad
-            .clone()
-            .unwrap()
-            .iter()
-            .zip(data)
-            .map(|(a, b)| a + b)
-            .collect();
-        t.grad = Some(Storage::new(data, self.device.clone()));
+    /// Add a `Vec<T>` value to the gradient inside the `TensorImpl`.
+    pub(crate) fn add_to_grad(&self, tensor: Tensor<T>) {
+        let mut t: std::cell::RefMut<'_, TensorImpl<T>> = self.inner.borrow_mut();
+        // t.grad = Some(Storage::from_slice(data, self.device.clone()));
+        t.grad = Some(t.grad.clone().unwrap() + tensor);
     }
 
     /// Returns the gradient vector.
-    pub fn grad(&self) -> Option<Vec<f64>> {
-        match &self.inner.borrow().grad {
-            Some(g) => Some(g.to_vec()),
-            None => None,
-        }
+    pub fn grad(&self) -> Option<Tensor<T>> {
+        self.inner.borrow().grad.clone()
     }
 
     /// Replace current data inside the tensor with new `data`
-    pub(crate) fn set_data(&self, data: Vec<f64>) {
+    pub(crate) fn set_data(&self, data: Vec<T>) {
         self.inner.borrow_mut().data.replace_data(data);
     }
 
-    /// Powers the `Tensor`
+    /// Multicast operation
     ///
-    /// Accepts `n` integer in which the `Tensor` will be powered.
+    /// It ensures that the lower dimensions of the two tensors are the same if
+    /// they are, then it performs the given operation elementwise, using the
+    /// lower dimensional tensor as a convolution window.
     ///
-    /// For backpropagation it stores the `n` inside the `Op::Pow(n)`.
-    pub fn pow(&self, n: i32) -> Self {
-        let data = self.data().iter().map(|a| a.powi(n)).collect::<Vec<f64>>();
-        let shape = self.shape();
-        let device = self.device;
-        let inner = TensorImpl::from_op(data, vec![self.clone()], Op::Pow(n), device);
-        Self::new(inner, &shape)
+    /// Accepts:
+    /// * a: Tensor
+    /// * b: Tensor
+    /// * op: operation `Op`, permitted operations are `Add` and `Mul`
+    ///
+    /// Returns Tensor
+    pub(crate) fn multicast_op(a: Tensor<T>, b: Tensor<T>, op: Op<T>) -> Self {
+        let mut a = a;
+        let mut b = b;
+        // check whether to expand any of variables
+        if a.shape() != b.shape() {
+            // if `a` tensor is bigger => expand `b`
+            // else expand `a`
+            if a.length() > b.length() {
+                b = b.expand(&a.shape());
+            } else {
+                a = a.expand(&b.shape());
+            }
+        }
+
+        let device = a.device;
+
+        let mut mask = vec![0; a.shape().len()];
+        let mut data = vec![T::zero(); a.length()];
+        // iterate over storage data
+        for d in data.iter_mut() {
+            // compute index of past position of data
+            let a_i = a.data()[a
+                .stride()
+                .iter()
+                .zip(&mask)
+                .map(|(a, b)| a * b)
+                .sum::<usize>()];
+            let b_i = b.data()[b
+                .stride()
+                .iter()
+                .zip(&mask)
+                .map(|(a, b)| a * b)
+                .sum::<usize>()];
+            // write the result for particular element based on the operation
+            *d = match op {
+                Op::Add => a_i + b_i,
+                Op::Sub => a_i - b_i,
+                Op::Mul => a_i * b_i,
+                _ => unreachable!(),
+            };
+            for j in (0..a.shape().len()).rev() {
+                if a.shape()[j] - 1 == mask[j] {
+                    continue;
+                }
+                mask[j] += 1;
+                for k in ((j + 1)..a.shape().len()).rev() {
+                    mask[k] = 0;
+                }
+                break;
+            }
+        }
+        let inner = TensorImpl::from_op(data, &a.shape(), vec![a, b], op, device);
+        Self::new(inner)
     }
 
+    #[cfg(feature = "cuda")]
+    pub fn cuda(&self) -> Tensor<T> {
+        let inner = self.inner.borrow();
+
+        let new_inner = TensorImpl {
+            data: inner.data.to_cuda(),
+            shape: self.shape(),
+            stride: self.stride(),
+            grad: inner.grad.as_ref().map(|g| g.cuda()),
+            _prev: inner._prev.clone(),
+            _op: inner._op.clone(),
+        };
+
+        Tensor {
+            inner: Rc::new(RefCell::new(new_inner)),
+            device: Device::CUDA,
+        }
+    }
+
+    pub fn cpu(&self) -> Tensor<T> {
+        match self.device {
+            Device::CPU => self.to_owned(),
+            #[cfg(feature = "cuda")]
+            Device::CUDA => {
+                let new_storage = self.inner.borrow().data.to_cpu();
+                let mut new_data = TensorImpl::from_slice(&[], &self.shape());
+                new_data.data = new_storage;
+                new_data.grad = self.inner.borrow().grad.clone();
+                Self {
+                    inner: Rc::new(RefCell::new(new_data)),
+                    device: Device::CPU,
+                }
+            }
+        }
+    }
+
+    /// Concatenates a slice of tensors along the given dimension.
+    /// All tensors must have the same shape except in the `dim` axis.
+    pub fn cat(tensors: &[Tensor<T>], dim: isize) -> Self {
+        assert!(!tensors.is_empty(), "cat: need at least one tensor");
+        assert!(dim >= -1, "cat: `dim` cannot be negative integer");
+
+        let ndim = tensors[0].shape().len();
+
+        let dim: usize = if dim == -1 {
+            tensors[0].shape().len() - 1
+        } else {
+            dim as usize
+        };
+
+        assert!(
+            dim < ndim,
+            "cat: dim {} out of range for {}-D tensor",
+            dim,
+            ndim
+        );
+
+        // Validate all shapes match except on `dim`
+        for t in tensors.iter().skip(1) {
+            assert_eq!(
+                t.shape().len(),
+                ndim,
+                "cat: all tensors must have same number of dims"
+            );
+            for d in 0..ndim {
+                if d != dim {
+                    assert_eq!(
+                        t.shape()[d],
+                        tensors[0].shape()[d],
+                        "cat: shape mismatch on dim {}",
+                        d
+                    );
+                }
+            }
+        }
+
+        // Compute output shape
+        let mut out_shape = tensors[0].shape().clone();
+        out_shape[dim] = tensors.iter().map(|t| t.shape()[dim]).sum();
+
+        // Collect contiguous data from each tensor
+        let mut data = Vec::with_capacity(out_shape.iter().product());
+
+        // Iterate over all positions except `dim`, then gather slices
+        let outer: usize = out_shape[..dim].iter().product();
+        let inner: usize = out_shape[dim + 1..].iter().product();
+
+        for o in 0..outer {
+            for t in tensors {
+                let slice_len = t.shape()[dim] * inner;
+                let offset = o * slice_len;
+                let items = t.data();
+                data.extend_from_slice(&items[offset..offset + slice_len]);
+            }
+        }
+
+        let inner_data = TensorImpl::from_slice(&data, &out_shape);
+        Tensor::new(inner_data)
+    }
+
+    pub fn cast<U: TensorElement>(self) -> Tensor<U>
+    where
+        T: Cast<U>,
+    {
+        let data: Vec<U> = self.storage().iter().map(T::cast).collect();
+        crate::tensor(&data, &self.shape())
+    }
+}
+
+impl<T: TensorFloat> Tensor<T> {
     /// Backward
     ///
     /// Computes the gradients of all the tensors that have been interacting and
@@ -595,7 +764,7 @@ impl Tensor {
             "grad can be implicitly created only for scalar outputs"
         );
 
-        self.add_to_grad(vec![1.0]);
+        self.add_to_grad(crate::tensor(&[<T as TensorElement>::one()], &[1]));
         self._backward()
     }
 
@@ -614,116 +783,38 @@ impl Tensor {
         }
     }
 
-    /// Multicast operation
+    /// Powers the `Tensor`
     ///
-    /// It ensures that the lower dimensions of the two tensors are the same if
-    /// they are, then it performs the given operation elementwise, using the
-    /// lower dimensional tensor as a convolution window.
+    /// Accepts `n` integer in which the `Tensor` will be powered.
     ///
-    /// Accepts:
-    /// * a: Tensor
-    /// * b: Tensor
-    /// * op: operation `Op`, permitted operations are `Add` and `Mul`
-    ///
-    /// Returns Tensor
-    fn multicast_op(a: Tensor, b: Tensor, op: Op) -> Tensor {
-        let mut a = a;
-        let mut b = b;
-        // check whether to expand any of variables
-        if a.shape != b.shape {
-            // if `a` tensor is bigger => expand `b`
-            // else expand `a`
-            if a.length() > b.length() {
-                b = b.expand(&a.shape);
-            } else {
-                a = a.expand(&b.shape);
-            }
-        }
-
-        let device = a.device;
-
-        let mut mask = vec![0; a.shape.len()];
-        let mut data = vec![0.0; a.length()];
-        // iterate over storage data
-        for d in data.iter_mut() {
-            // compute index of past position of data
-            let a_i = a.storage()[a
-                .stride
-                .iter()
-                .zip(&mask)
-                .map(|(a, b)| a * b)
-                .sum::<usize>()];
-            let b_i = b.storage()[b
-                .stride
-                .iter()
-                .zip(&mask)
-                .map(|(a, b)| a * b)
-                .sum::<usize>()];
-            // write the result for particular element based on the operation
-            *d = match op {
-                Op::Add => a_i + b_i,
-                Op::Sub => a_i - b_i,
-                Op::Mul => a_i * b_i,
-                _ => unreachable!(),
-            };
-            for j in (0..a.shape.len()).rev() {
-                if a.shape[j] - 1 == mask[j] {
-                    continue;
-                }
-                mask[j] += 1;
-                for k in ((j + 1)..a.shape.len()).rev() {
-                    mask[k] = 0;
-                }
-                break;
-            }
-        }
-        let shape = a.shape();
-        let inner = TensorImpl::from_op(data, vec![a, b], op, device);
-        Self::new(inner, &shape)
+    /// For backpropagation it stores the `n` inside the `Op::Pow(n)`.
+    pub fn pow(&self, n: i32) -> Self {
+        let data = self.data().iter().map(|a| a.powi(n)).collect::<Vec<T>>();
+        let shape = self.shape();
+        let device = self.device;
+        let inner = TensorImpl::from_op(data, &shape, vec![self.clone()], Op::Pow(n), device);
+        Self::new(inner)
     }
 
-    #[cfg(feature = "cuda")]
-    pub fn cuda(&self) -> Tensor {
-        let inner = self.inner.borrow();
-
-        let new_inner = TensorImpl {
-            data: inner.data.to_cuda(),
-            grad: inner.grad.as_ref().map(|g| g.to_cuda()),
-            _prev: inner._prev.clone(),
-            _op: inner._op.clone(),
-        };
-
-        Tensor {
-            inner: Rc::new(RefCell::new(new_inner)),
-            shape: self.shape.clone(),
-            stride: self.stride.clone(),
-            device: Device::CUDA,
+    pub fn log(&self) -> Self {
+        let mut data = self.data();
+        for item in data.iter_mut() {
+            *item = (*item).ln();
         }
-    }
-
-    pub fn cpu(&self) -> Tensor {
-        match self.device {
-            Device::CPU => self.to_owned(),
-            #[cfg(feature = "cuda")]
-            Device::CUDA => {
-                let new_storage = self.inner.borrow().data.to_cpu();
-                let mut new_data = TensorImpl::from_f64(vec![]);
-                new_data.data = new_storage;
-                new_data.grad = self.inner.borrow().grad.clone();
-                Self {
-                    inner: Rc::new(RefCell::new(new_data)),
-                    shape: self.shape.clone(),
-                    stride: self.stride.clone(),
-                    device: Device::CPU,
-                }
-            }
-        }
+        let inner = TensorImpl::from_op(
+            data,
+            &self.shape(),
+            vec![self.clone()],
+            Op::Exp(self.clone()),
+            self.device,
+        );
+        Tensor::new(inner)
     }
 
     /// Converts the tensor to a `String`, so that it can be printed.
     fn tensor_to_str(&self, tensor_str: String, level: usize, range: Range<usize>) -> String {
         let mut width = 1;
-        for i in self.storage() {
+        for i in self.data() {
             let s = (i.floor() as i64).to_string();
             if s.len() > width {
                 width = s.len();
@@ -817,132 +908,15 @@ impl Tensor {
         result.push(']');
         result
     }
+}
 
-    /// Concatenates a slice of tensors along the given dimension.
-    /// All tensors must have the same shape except in the `dim` axis.
-    pub fn cat(tensors: &[Tensor], dim: isize) -> Self {
-        assert!(!tensors.is_empty(), "cat: need at least one tensor");
-        assert!(dim >= -1, "cat: `dim` cannot be negative integer");
-
-        let ndim = tensors[0].shape.len();
-
-        let dim: usize = if dim == -1 {
-            tensors[0].shape().len() - 1
-        } else {
-            dim as usize
-        };
-
-        assert!(
-            dim < ndim,
-            "cat: dim {} out of range for {}-D tensor",
-            dim,
-            ndim
-        );
-
-        // Validate all shapes match except on `dim`
-        for t in tensors.iter().skip(1) {
-            assert_eq!(
-                t.shape.len(),
-                ndim,
-                "cat: all tensors must have same number of dims"
-            );
-            for d in 0..ndim {
-                if d != dim {
-                    assert_eq!(
-                        t.shape[d], tensors[0].shape[d],
-                        "cat: shape mismatch on dim {}",
-                        d
-                    );
-                }
-            }
-        }
-
-        // Compute output shape
-        let mut out_shape = tensors[0].shape.clone();
-        out_shape[dim] = tensors.iter().map(|t| t.shape[dim]).sum();
-
-        // Collect contiguous data from each tensor
-        let mut data = Vec::with_capacity(out_shape.iter().product());
-
-        // Iterate over all positions except `dim`, then gather slices
-        let outer: usize = out_shape[..dim].iter().product();
-        let inner: usize = out_shape[dim + 1..].iter().product();
-
-        for o in 0..outer {
-            for t in tensors {
-                let slice_len = t.shape[dim] * inner;
-                let offset = o * slice_len;
-                let items = t.data();
-                data.extend_from_slice(&items[offset..offset + slice_len]);
-            }
-        }
-
-        let inner_data = TensorImpl::from_f64(data);
-        Tensor::new(inner_data, &out_shape)
+impl<T: TensorElement> PartialEq for Tensor<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner
     }
 }
 
-impl Add for Tensor {
-    type Output = Tensor;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self::multicast_op(self, rhs, Op::Add)
-    }
-}
-
-impl Sub for Tensor {
-    type Output = Tensor;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self::multicast_op(self, rhs, Op::Sub)
-    }
-}
-
-impl Mul for Tensor {
-    type Output = Tensor;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        Self::multicast_op(self, rhs, Op::Mul)
-    }
-}
-
-impl Div for Tensor {
-    type Output = Tensor;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        self * rhs.pow(-1)
-    }
-}
-
-impl Neg for Tensor {
-    type Output = Tensor;
-
-    fn neg(self) -> Self::Output {
-        self * -1.0
-    }
-}
-
-macro_rules! impl_scalar_op {
-    ($trait:ident, $method:ident, $expr:expr, $($t:ty),+) => {
-        $(
-            impl $trait<$t> for Tensor {
-                type Output = Tensor;
-
-                fn $method(self, rhs: $t) -> Self::Output {
-                    self.inner.borrow_mut().data.map_inplace(|x| $expr(x, rhs as f64));
-                    self
-                }
-            }
-        )+
-    };
-}
-
-impl_scalar_op!(Add, add, |x: f64, y: f64| x + y, i32, i64, f32, f64, usize);
-impl_scalar_op!(Sub, sub, |x: f64, y: f64| x - y, i32, i64, f32, f64, usize);
-impl_scalar_op!(Mul, mul, |x: f64, y: f64| x * y, i32, i64, f32, f64, usize);
-impl_scalar_op!(Div, div, |x: f64, y: f64| x / y, i32, i64, f32, f64, usize);
-
-impl Display for Tensor {
+impl<T: TensorElement> Display for Tensor<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let data = String::new();
         let shape = self.shape();
@@ -957,26 +931,24 @@ impl Display for Tensor {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! __tensor_shape {
-    ( [ $( $elem:tt ),* $(,)? ] ) => {{
+    ([ $( $elem:tt ),* $(,)? ]) => {{
         let mut shape = vec![0usize];
         $(
             let child = $crate::__tensor_shape!($elem);
-            if shape.len() == 1 {
+            if shape[0] == 0 {
                 shape.extend_from_slice(&child);
             } else {
                 assert_eq!(
                     &shape[1..],
                     child.as_slice(),
-                    "tensor! rows must have consistent inner shapes"
+                    "tensor! elements must have consistent inner shapes"
                 );
             }
             shape[0] += 1;
         )*
         shape
     }};
-    ( & [ $( $elem:tt ),* $(,)? ] ) => {
-        $crate::__tensor_shape!([ $( $elem ),* ])
-    };
+
     ( $scalar:expr ) => {
         Vec::<usize>::new()
     };
@@ -990,11 +962,7 @@ macro_rules! __tensor_flatten {
             $crate::__tensor_flatten!($out ; $elem);
         )*
     }};
-    ( $out:ident ; & [ $( $elem:tt ),* $(,)? ] ) => {{
-        $(
-            $crate::__tensor_flatten!($out ; $elem);
-        )*
-    }};
+
     ( $out:ident ; $scalar:expr ) => {{
         $out.push(($scalar) as f64);
     }};
@@ -1024,13 +992,4 @@ macro_rules! randn {
     ($($element:expr,)*) => {{
         $crate::tensor::randn![$($element),*]
     }};
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! count_shape {
-    (@COUNT; $($element:expr),*) => {
-        <[()]>::len(&[$($crate::count_shape![@SUBST; $element]),*])
-    };
-    (@SUBST; $_element:expr) => { () };
 }

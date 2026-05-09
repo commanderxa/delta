@@ -161,6 +161,22 @@ mod tests {
     }
 
     #[test]
+    fn log() {
+        let a = delta::tensor(&[4.7767, 4.3234, 1.2156, 0.2411, 4.5739], &[5]);
+        let b = delta::tensor(
+            &[
+                1.563749931514684,
+                1.4640421297418154,
+                0.19523778206050096,
+                -1.4225434937950117,
+                1.520366232659367,
+            ],
+            &[5],
+        );
+        assert_eq!(a.log().data(), b.data(), "Pow is wrong");
+    }
+
+    #[test]
     fn neg() {
         let a = delta::arange(0., 10., 1.0);
         let b = -a.clone();
@@ -286,5 +302,33 @@ mod tests {
         let a2 = a.mean(Some(1), false);
         let a2_e = vec![1., 4., 7.];
         assert_eq!(a2.data(), a2_e);
+    }
+
+    #[test]
+    fn tensor_macro() {
+        let a = delta::tensor(&[1., 2., 3.], &[3]);
+        let b = delta::tensor!([1, 2, 3]);
+        assert_eq!(a.data(), b.data());
+        assert_eq!(a.shape, b.shape);
+        assert_eq!(a.stride, b.stride);
+
+        let a = delta::arange(0., 9., 1.).reshape(&[3, 3]);
+        let b = delta::tensor!([[0, 1, 2], [3, 4, 5], [6, 7, 8]]);
+        assert_eq!(a.data(), b.data());
+        assert_eq!(a.shape, b.shape);
+        assert_eq!(a.stride, b.stride);
+
+        let a = delta::arange(0., 9., 1.).reshape(&[1, 3, 3]);
+        let b = delta::tensor!([[[0, 1, 2], [3, 4, 5], [6, 7, 8]]]);
+        assert_eq!(a.data(), b.data());
+        assert_eq!(a.shape, b.shape);
+        assert_eq!(a.stride, b.stride);
+    }
+
+    #[test]
+    fn eq() {
+        let a = delta::tensor!([[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]]);
+        let b = delta::tensor!([[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]]);
+        assert_eq!(a, b);
     }
 }
