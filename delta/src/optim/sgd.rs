@@ -1,4 +1,4 @@
-use crate::{nn::Parameter, tensor::element::TensorFloat};
+use crate::{nn::Parameter, tensor::repr::FloatTensorRepr};
 
 use super::Optim;
 
@@ -10,26 +10,26 @@ use super::Optim;
 /// - parameters of the model
 /// - learning rate
 #[derive(Clone)]
-pub struct SGD<T: TensorFloat> {
-    parameters: Vec<Parameter<T>>,
+pub struct SGD<T: FloatTensorRepr> {
+    parameters: Vec<Parameter>,
     lr: T,
     maximize: bool,
 }
 
-impl<T: TensorFloat> SGD<T> {
+impl<T: FloatTensorRepr> SGD<T> {
     pub fn lr(&self) -> T {
-        self.lr
+        self.lr.clone()
     }
 
     pub fn is_maximize(&self) -> bool {
         self.maximize
     }
 
-    pub fn parameters(&self) -> &[Parameter<T>] {
+    pub fn parameters(&self) -> &[Parameter] {
         &self.parameters
     }
 
-    pub fn new(parameters: Vec<Parameter<T>>, lr: T) -> Self {
+    pub fn new(parameters: Vec<Parameter>, lr: T) -> Self {
         Self {
             parameters,
             lr,
@@ -46,15 +46,15 @@ impl<T: TensorFloat> SGD<T> {
     }
 }
 
-impl<T: TensorFloat> Optim<T> for SGD<T> {
+impl<T: FloatTensorRepr> Optim<T> for SGD<T> {
     fn step(&self) {
         for i in 0..self.parameters.len() {
             let data: Vec<T> = self.parameters[i]
                 .grad()
                 .unwrap()
-                .data()
+                .data::<T>()
                 .iter()
-                .zip(self.parameters[i].data())
+                .zip(self.parameters[i].data::<T>())
                 .map(|(a, b)| {
                     // w_i = w_(i-1) - lr * grad
                     // b = w(i-1)
@@ -68,7 +68,7 @@ impl<T: TensorFloat> Optim<T> for SGD<T> {
 
     fn zero_grad(&self) {
         for i in 0..self.parameters.len() {
-            self.parameters[i].inner.borrow_mut().zero_grad();
+            self.parameters[i].inner.borrow_mut().zero_grad::<T>();
         }
     }
 

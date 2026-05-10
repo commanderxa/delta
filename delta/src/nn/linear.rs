@@ -2,9 +2,11 @@ use std::collections::HashMap;
 
 use crate::{
     Tensor,
+    device::Device,
     ivalue::IValue,
     linalg,
     nn::{Module, Parameter},
+    tensor::repr::FloatTensorRepr,
 };
 
 /// # `Linear` Layer
@@ -21,34 +23,34 @@ use crate::{
 // #[derive(Module, Clone)]
 pub struct Linear {
     // #[param]
-    pub weights: Parameter<f32>,
+    pub weights: Parameter,
 }
 
 impl Linear {
-    pub fn new(mut in_features: usize, out_features: usize, bias: bool) -> Self {
+    pub fn new<T: FloatTensorRepr>(
+        mut in_features: usize,
+        out_features: usize,
+        bias: bool,
+    ) -> Self {
         if bias {
             in_features += 1;
         }
-        let _weights = Parameter(crate::randn::<f32>(&[in_features, out_features]));
+        let _weights = Parameter(crate::randn::<T>(&[in_features, out_features], Device::CPU));
         Self { weights: _weights }
     }
 }
 
-impl Module<f32> for Linear {
+impl Module for Linear {
     fn module_name(&self) -> String {
         "Linear".to_owned()
     }
 
-    fn parameters(&self) -> Vec<Parameter<f32>> {
+    fn parameters(&self) -> Vec<Parameter> {
         let parameters = vec![self.weights.clone()];
         parameters
     }
 
-    fn forward(
-        &self,
-        args: Vec<IValue<f32>>,
-        _kwargs: HashMap<String, IValue<f32>>,
-    ) -> IValue<f32> {
+    fn forward(&self, args: Vec<IValue>, _kwargs: HashMap<String, IValue>) -> IValue {
         let x = match &args[0] {
             IValue::Tensor(t) => t.clone(),
             _ => panic!("Linear expects a Tensor as first argument"),
@@ -57,8 +59,11 @@ impl Module<f32> for Linear {
         let mut ones_shape = x.shape();
         let _ = ones_shape.pop();
         ones_shape.push(1);
-        let x = Tensor::cat(&[x, crate::ones::<f32>(&ones_shape)], 1);
-        let x = linalg::matmul(x, weights.0);
+        let x = Tensor::cat(
+            &[x, crate::ones::<T>(&ones_shape, self.weights.device())],
+            1,
+        );
+        let x = linalg::matmul::<T>(x, weights.0);
         IValue::Tensor(x)
     }
 }

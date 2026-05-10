@@ -1,11 +1,9 @@
+use crate::{Tensor, TensorImpl, tensor::repr::TensorRepr};
+use crate::{device::Device, op::Op};
 #[cfg(feature = "cuda")]
-use cudarc::cublas::safe::{CudaBlas, Gemm, GemmConfig, StridedBatchedConfig};
-#[cfg(feature = "cuda")]
-use cudarc::cublas::sys::cublasOperation_t;
-
-use crate::device::Device;
-use crate::tensor::element::TensorNum;
-use crate::{Tensor, TensorImpl, op::Op};
+use cudarc::cublas::{
+    Gemm, GemmConfig, StridedBatchedConfig, safe::CudaBlas, sys::cublasOperation_t,
+};
 
 /// Matrix multiplication
 ///
@@ -14,7 +12,7 @@ use crate::{Tensor, TensorImpl, op::Op};
 /// * b: `Tensor`
 ///
 /// The inner dimensions of the matrices must be the same.
-pub fn matmul<T: TensorNum>(a: Tensor<T>, b: Tensor<T>) -> Tensor<T> {
+pub fn matmul<T: TensorRepr>(a: Tensor, b: Tensor) -> Tensor {
     // shapes of the tensors
     let mut a_shape: Vec<usize> = a.shape();
     let b_shape: Vec<usize> = b.shape();
@@ -55,25 +53,25 @@ pub fn matmul<T: TensorNum>(a: Tensor<T>, b: Tensor<T>) -> Tensor<T> {
     let new_shape: Vec<usize> = batches.into_iter().chain(vec![m, n]).collect();
 
     device_op!(device,
-        cpu => matmul_cpu(a, b, m, k, n, batch_prod, &new_shape),
+        cpu => matmul_cpu::<T>(a, b, m, k, n, batch_prod, &new_shape),
         cuda => {
             let blas = CudaBlas::new(crate::cuda::current_stream()).unwrap();
-            matmul_batched_cuda(&blas, a, b, batch_prod, m, k, n, &new_shape)
+            matmul_batched_cuda::<T>(&blas, a, b, batch_prod, m, k, n, &new_shape)
         }
     )
 }
 
-fn matmul_cpu<T: TensorNum>(
-    a: Tensor<T>,
-    b: Tensor<T>,
+fn matmul_cpu<T: TensorRepr>(
+    a: Tensor,
+    b: Tensor,
     m: usize,
     k: usize,
     n: usize,
     batch_size: usize,
     new_shape: &[usize],
-) -> Tensor<T> {
+) -> Tensor {
     // data of the tensors, the tensor b is transposed
-    let a_data = a.data();
+    let a_data = a.data::<T>();
     let b_data = b.t().data();
 
     let mut result = vec![T::zero(); batch_size * m * n];
@@ -102,61 +100,62 @@ fn matmul_cpu<T: TensorNum>(
 }
 
 #[cfg(feature = "cuda")]
-fn matmul_batched_cuda<T: TensorNum>(
+fn matmul_batched_cuda<T: TensorRepr>(
     blas: &CudaBlas,
-    a: Tensor<T>,
-    b: Tensor<T>,
+    a: Tensor,
+    b: Tensor,
     batch_size: usize,
     m: usize,
     k: usize,
     n: usize,
     new_shape: &[usize],
-) -> Tensor<T> {
-    let mut a = a;
-    let mut b = b;
+) -> Tensor {
+    todo!()
+    // let mut a = a;
+    // let mut b = b;
 
-    if &a.shape().len() > &b.shape().len() {
-        let mut b_shape = new_shape[0..new_shape.len() - 2].to_vec();
-        b_shape.extend(&b.shape());
-        b = b.expand(&b_shape).contiguous();
-    } else if &a.shape().len() < &b.shape().len() {
-        let mut a_shape = new_shape[0..new_shape.len() - 2].to_vec();
-        a_shape.extend(&a.shape());
-        a = a.expand(&a_shape).contiguous();
-    }
+    // if &a.shape().len() > &b.shape().len() {
+    //     let mut b_shape = new_shape[0..new_shape.len() - 2].to_vec();
+    //     b_shape.extend(&b.shape());
+    //     b = b.expand(&b_shape).contiguous();
+    // } else if &a.shape().len() < &b.shape().len() {
+    //     let mut a_shape = new_shape[0..new_shape.len() - 2].to_vec();
+    //     a_shape.extend(&a.shape());
+    //     a = a.expand(&a_shape).contiguous();
+    // }
 
-    let a_data = a.storage();
-    let a_data = a_data.as_cuda();
-    let b_data = b.storage();
-    let b_data = b_data.as_cuda();
+    // let a_data = a.storage();
+    // let a_data = a_data.as_cuda();
+    // let b_data = b.storage();
+    // let b_data = b_data.as_cuda();
 
-    let stream = crate::cuda::current_stream();
-    let mut c = stream.alloc_zeros::<T>(batch_size * m * n).unwrap();
+    // let stream = crate::cuda::current_stream();
+    // let mut c = stream.alloc_zeros::<T>(batch_size * m * n).unwrap();
 
-    let cfg = StridedBatchedConfig {
-        gemm: GemmConfig {
-            transa: cublasOperation_t::CUBLAS_OP_N,
-            transb: cublasOperation_t::CUBLAS_OP_N,
-            m: n as i32,
-            n: m as i32,
-            k: k as i32,
-            alpha: T::one(),
-            lda: n as i32,
-            ldb: k as i32,
-            beta: T::zero(),
-            ldc: n as i32,
-        },
-        batch_size: batch_size as i32,
-        stride_a: (k * n) as i64,
-        stride_b: (m * k) as i64,
-        stride_c: (m * n) as i64,
-    };
+    // let cfg = StridedBatchedConfig {
+    //     gemm: GemmConfig {
+    //         transa: cublasOperation_t::CUBLAS_OP_N,
+    //         transb: cublasOperation_t::CUBLAS_OP_N,
+    //         m: n as i32,
+    //         n: m as i32,
+    //         k: k as i32,
+    //         alpha: T::one(),
+    //         lda: n as i32,
+    //         ldb: k as i32,
+    //         beta: T::zero(),
+    //         ldc: n as i32,
+    //     },
+    //     batch_size: batch_size as i32,
+    //     stride_a: (k * n) as i64,
+    //     stride_b: (m * k) as i64,
+    //     stride_c: (m * n) as i64,
+    // };
 
-    unsafe {
-        blas.gemm_strided_batched(cfg, b_data, a_data, &mut c)
-            .unwrap();
-    }
+    // unsafe {
+    //     blas.gemm_strided_batched(cfg, b_data, a_data, &mut c)
+    //         .unwrap();
+    // }
 
-    let inner = TensorImpl::from_cuda(c, &new_shape, vec![a, b], Some(Op::MatMul));
-    Tensor::new(inner)
+    // let inner = TensorImpl::from_cuda(c, &new_shape, vec![a, b], Some(Op::MatMul));
+    // Tensor::new(inner)
 }

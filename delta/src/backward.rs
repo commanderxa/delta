@@ -1,18 +1,14 @@
-use crate::{
-    Tensor, linalg,
-    op::Op,
-    tensor::element::{TensorElement, TensorFloat},
-};
+use crate::{Tensor, linalg, op::Op, tensor::cast::Cast};
 
 /// Backward trait for backpropagation operation.
-pub trait Backward<T: TensorFloat> {
-    fn backward(&self, tensor: &Tensor<T>);
+pub trait Backward {
+    fn backward(&self, tensor: &Tensor);
 }
 
 /// `Backward` trait implemeted for `Op` where each operation has it's own
 /// backpropagation operation.
-impl<T: TensorFloat> Backward<T> for Op<T> {
-    fn backward(&self, tensor: &Tensor<T>) {
+impl Backward for Op {
+    fn backward(&self, tensor: &Tensor) {
         match self {
             // Addition backward
             // 1.0 * grad for both previous tensors
@@ -46,28 +42,31 @@ impl<T: TensorFloat> Backward<T> for Op<T> {
             }
 
             Op::Sum { dim, keepdim } => {
-                let t = tensor.inner.borrow();
-                let grad = t.grad.clone().unwrap().data();
-                let prev = &t._prev[0];
-                let prev_shape = prev.shape();
+                // let t = tensor.inner.borrow();
+                // let grad = t.grad.clone().unwrap().data();
+                // let prev = &t._prev[0];
+                // let prev_shape = prev.shape();
 
-                let back = match dim {
-                    None => crate::tensor(&vec![grad[0]; prev.length()], &prev_shape),
-                    Some(dim) => {
-                        let mut grad_tensor =
-                            crate::tensor(&grad, &tensor.shape()).requires_grad(false);
+                // let back = match dim {
+                //     None => {
+                //         crate::tensor(&vec![grad[0]; prev.length()], &prev_shape, prev.device())
+                //     }
+                //     Some(dim) => {
+                //         let mut grad_tensor =
+                //             crate::tensor(&grad, &tensor.shape(), tensor.device())
+                //                 .requires_grad(false);
 
-                        if !*keepdim {
-                            let mut shape = prev_shape.clone();
-                            shape[*dim] = 1;
-                            grad_tensor = grad_tensor.reshape(&shape);
-                        }
+                //         if !*keepdim {
+                //             let mut shape = prev_shape.clone();
+                //             shape[*dim] = 1;
+                //             grad_tensor = grad_tensor.reshape(&shape);
+                //         }
 
-                        grad_tensor.expand(&prev_shape)
-                    }
-                };
+                //         grad_tensor.expand(&prev_shape)
+                //     }
+                // };
 
-                prev.add_to_grad(back);
+                // prev.add_to_grad(back);
             }
 
             Op::Mean {
@@ -75,33 +74,36 @@ impl<T: TensorFloat> Backward<T> for Op<T> {
                 keepdim,
                 count,
             } => {
-                let t = tensor.inner.borrow();
-                let grad = t.grad.clone().unwrap().data();
-                let prev = &t._prev[0];
-                let prev_shape = prev.shape();
+                // let t = tensor.inner.borrow();
+                // let grad = t.grad.clone().unwrap().data();
+                // let prev = &t._prev[0];
+                // let prev_shape = prev.shape();
 
-                let back = match dim {
-                    None => crate::tensor(&vec![grad[0]; prev.length()], &prev_shape),
-                    Some(dim) => {
-                        let mut grad_tensor =
-                            crate::tensor(&grad, &tensor.shape()).requires_grad(false);
+                // let back = match dim {
+                //     None => {
+                //         crate::tensor(&vec![grad[0]; prev.length()], &prev_shape, prev.device())
+                //     }
+                //     Some(dim) => {
+                //         let mut grad_tensor =
+                //             crate::tensor(&grad, &tensor.shape(), tensor.device())
+                //                 .requires_grad(false);
 
-                        if !*keepdim {
-                            let mut shape = prev_shape.clone();
-                            shape[*dim] = 1;
-                            grad_tensor = grad_tensor.reshape(&shape);
-                        }
+                //         if !*keepdim {
+                //             let mut shape = prev_shape.clone();
+                //             shape[*dim] = 1;
+                //             grad_tensor = grad_tensor.reshape(&shape);
+                //         }
 
-                        grad_tensor.expand(&prev_shape)
-                    }
-                };
+                //         grad_tensor.expand(&prev_shape)
+                //     }
+                // };
 
-                let scale = <T as TensorElement>::one() / T::from(*count).unwrap();
-                for g in back.data().iter_mut() {
-                    *g = *g * scale;
-                }
+                // let scale = Cast::cast(1.) / Cast::cast(*count as i64);
+                // for g in back.data().iter_mut() {
+                //     *g = *g * scale;
+                // }
 
-                prev.add_to_grad(back);
+                // prev.add_to_grad(back);
             }
 
             // Power backward
@@ -116,21 +118,21 @@ impl<T: TensorFloat> Backward<T> for Op<T> {
             // Exponent backward
             // d(e^x)/dx = e^x
             Op::Exp(_t) => {
-                let t = tensor.inner.borrow();
-                let grad = t.grad.clone().unwrap();
-                t._prev[0].add_to_grad(_t.exp() * grad);
+                // let t = tensor.inner.borrow();
+                // let grad = t.grad.clone().unwrap();
+                // t._prev[0].add_to_grad(_t.exp() * grad);
             }
 
             // Matrix Multiplication backward
             // da = dc @ b.T
             // db = a.T @ dc
             Op::MatMul => {
-                let t = tensor.inner.borrow();
-                let d_c = t.grad.clone().unwrap();
-                let a = t._prev[0].t();
-                let b = t._prev[1].t();
-                t._prev[0].add_to_grad(linalg::matmul(d_c.clone(), b));
-                t._prev[1].add_to_grad(linalg::matmul(a, d_c));
+                // let t = tensor.inner.borrow();
+                // let d_c = t.grad.clone().unwrap();
+                // let a = t._prev[0].t();
+                // let b = t._prev[1].t();
+                // t._prev[0].add_to_grad(linalg::matmul(d_c.clone(), b));
+                // t._prev[1].add_to_grad(linalg::matmul(a, d_c));
             }
 
             // Cross Section Multiplication backward
@@ -141,63 +143,57 @@ impl<T: TensorFloat> Backward<T> for Op<T> {
             // ReLU backward
             // d(relu)/dx = { 1 if x > 0 else 0 }
             Op::ReLU => {
-                let t = tensor.inner.borrow();
-                let mut prev = t._prev[0].inner.borrow_mut();
-                let input_data = prev.data.to_vec();
-                let out_grad = t.grad.as_ref().unwrap().data();
-                let grad: Vec<T> = input_data
-                    .into_iter()
-                    .zip(out_grad.into_iter())
-                    .map(|(x, go)| {
-                        if x > <T as TensorElement>::zero() {
-                            go
-                        } else {
-                            <T as TensorElement>::zero()
-                        }
-                    })
-                    .collect();
+                // let t = tensor.inner.borrow();
+                // let mut prev = t._prev[0].inner.borrow_mut();
+                // let input_data = prev.data.as_cpu();
+                // let out_grad = t.grad.as_ref().unwrap().data();
+                // let grad: Vec<_> = input_data
+                //     .into_iter()
+                //     .zip(out_grad.into_iter())
+                //     .map(|(x, go)| if x > Cast::cast(0) { go } else { Cast::cast(0) })
+                //     .collect();
 
-                prev.grad = Some(crate::tensor(&grad, &t.shape));
+                // prev.grad = Some(crate::tensor(&grad, &t.shape, t.device()));
             }
 
             // Sigmoid backward
             // sigmoid function:        1 / (1 + exp(-x))
             // dx(sigmoid) function:    exp(-x) / (1 + exp(-x))^2
             Op::Sigmoid(x) => {
-                let t = tensor.inner.borrow();
-                let e_x = (-x.clone()).exp();
-                let res = e_x.clone() / (e_x + <T as TensorElement>::one()).pow(2);
-                let grad = t.grad.clone().unwrap();
-                let dx = grad * res;
-                t._prev[0].add_to_grad(dx);
+                // let t = tensor.inner.borrow();
+                // let e_x = (-x.clone()).exp();
+                // let res = e_x.clone() / (e_x + Cast::cast(1.)).pow(2);
+                // let grad = t.grad.clone().unwrap();
+                // let dx = grad * res;
+                // t._prev[0].add_to_grad(dx);
             }
 
             Op::Softmax(x, _) => {
-                let t = tensor.inner.borrow();
-                let n = x.length();
-                let s = x.data();
-                let mut jacobian = vec![<T as TensorElement>::zero(); n * n];
-                for i in 0..n {
-                    for j in 0..n {
-                        if i == j {
-                            jacobian[i * n + j] = s[i] * (<T as TensorElement>::one() - s[i]);
-                        } else {
-                            jacobian[i * n + j] = -s[i] * s[j];
-                        }
-                    }
-                }
-                let a = crate::tensor(&jacobian, &[n, n]).t();
-                t._prev[0].add_to_grad(a);
+                // let t = tensor.inner.borrow();
+                // let n = x.length();
+                // let s = x.data();
+                // let mut jacobian = vec![Cast::cast(0.); n * n];
+                // for i in 0..n {
+                //     for j in 0..n {
+                //         if i == j {
+                //             jacobian[i * n + j] = s[i] * (Cast::cast(1.) - s[i]);
+                //         } else {
+                //             jacobian[i * n + j] = -s[i] * s[j];
+                //         }
+                //     }
+                // }
+                // let a = crate::tensor(&jacobian, &[n, n], t.device()).t();
+                // t._prev[0].add_to_grad(a);
             }
 
             Op::MSE(n) => {
-                let t = tensor.inner.borrow();
-                let t_prev = t._prev[0].inner.borrow();
-                let t_sub = t_prev._prev[0].inner.borrow();
-                let grad = (t_sub._prev[0].clone() - t_sub._prev[1].clone()) * T::from(*n).unwrap();
-                drop(t_sub);
-                drop(t_prev);
-                t._prev[0].add_to_grad(grad);
+                // let t = tensor.inner.borrow();
+                // let t_prev = t._prev[0].inner.borrow();
+                // let t_sub = t_prev._prev[0].inner.borrow();
+                // let grad = (t_sub._prev[0].clone() - t_sub._prev[1].clone()) * Cast::cast(*n as i64);
+                // drop(t_sub);
+                // drop(t_prev);
+                // t._prev[0].add_to_grad(grad);
             }
         }
     }

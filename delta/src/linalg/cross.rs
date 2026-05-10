@@ -1,4 +1,4 @@
-use crate::{Tensor, TensorImpl, op::Op, tensor::element::TensorNum};
+use crate::{Tensor, TensorImpl, op::Op, tensor::repr::TensorRepr};
 
 /// Cross Product
 ///
@@ -7,7 +7,7 @@ use crate::{Tensor, TensorImpl, op::Op, tensor::element::TensorNum};
 /// * b: `Tensor`
 ///
 /// Performs the cross product of 3-dimensional vectors.
-pub fn cross<T: TensorNum>(a: Tensor<T>, b: Tensor<T>) -> Tensor<T> {
+pub fn cross<T: TensorRepr>(a: Tensor, b: Tensor) -> Tensor {
     // check the dimensions
     assert_eq!(
         a.shape().len(),
@@ -41,7 +41,7 @@ pub fn cross<T: TensorNum>(a: Tensor<T>, b: Tensor<T>) -> Tensor<T> {
     }
 
     // get data of the Tensors
-    let _a = a.data();
+    let _a = a.data::<T>();
     let _b = b.data();
     // result init
     let mut result = vec![T::zero(); a.length()];

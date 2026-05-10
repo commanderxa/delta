@@ -1,12 +1,12 @@
-use crate::{Tensor, tensor::element::TensorElement};
+use crate::Tensor;
 
 #[derive(Clone, Debug)]
-pub struct Parameter<T: TensorElement>(pub Tensor<T>);
+pub struct Parameter(pub Tensor);
 
-impl<T: TensorElement> std::ops::Deref for Parameter<T> {
-    type Target = Tensor<T>;
+impl std::ops::Deref for Parameter {
+    type Target = Tensor;
 
-    fn deref(&self) -> &Tensor<T> {
+    fn deref(&self) -> &Tensor {
         &self.0
     }
 }

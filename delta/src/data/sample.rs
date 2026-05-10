@@ -1,8 +1,8 @@
-use crate::{Tensor, tensor::element::TensorElement};
+use crate::Tensor;
 
 /// X is the input data
-pub type X<T: TensorElement> = Tensor<T>;
+pub type X = Tensor;
 /// Y is the target data
-pub type Y<T: TensorElement> = Tensor<T>;
+pub type Y = Tensor;
 /// Sample represents zipped input and target data
-pub type Sample<T, U> = (X<T>, Y<U>);
+pub type Sample = (X, Y);

@@ -2,7 +2,7 @@
 pub type f8 = float8::F8E4M3;
 
 #[derive(Debug, Clone)]
-pub enum DType {
+pub(crate) enum DType {
     Float8,
     Float16,
     BFloat16,
@@ -45,3 +45,24 @@ impl DType {
         )
     }
 }
+
+#[allow(non_upper_case_globals)]
+pub const float8: DType = DType::Float8;
+#[allow(non_upper_case_globals)]
+pub const float16: DType = DType::Float16;
+#[allow(non_upper_case_globals)]
+pub const bfloat16: DType = DType::BFloat16;
+#[allow(non_upper_case_globals)]
+pub const float32: DType = DType::Float32;
+#[allow(non_upper_case_globals)]
+pub const float64: DType = DType::Float64;
+#[allow(non_upper_case_globals)]
+pub const int8: DType = DType::Int8;
+#[allow(non_upper_case_globals)]
+pub const int16: DType = DType::Int16;
+#[allow(non_upper_case_globals)]
+pub const int32: DType = DType::Int32;
+#[allow(non_upper_case_globals)]
+pub const int64: DType = DType::Int64;
+#[allow(non_upper_case_globals)]
+pub const bool: DType = DType::Bool;

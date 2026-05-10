@@ -4,10 +4,10 @@ pub mod sgd;
 // Short paths for algorithms
 pub use sgd::SGD;
 
-use crate::tensor::element::TensorFloat;
+use crate::tensor::storage_impl::StorageRepr;
 
 /// Behavior of optimizers
-pub trait Optim<T: TensorFloat> {
+pub trait Optim<T: StorageRepr> {
     /// Updates the parameters according to the gradients.
     fn step(&self);
 

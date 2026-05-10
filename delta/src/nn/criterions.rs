@@ -1,4 +1,8 @@
-use crate::{Tensor, TensorImpl, op::Op, tensor::{cast::Cast, element::{TensorElement, TensorFloat, TensorNum}}};
+use crate::{
+    Tensor, TensorImpl,
+    op::Op,
+    tensor::repr::{FloatTensorRepr, TensorRepr},
+};
 
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub enum Reduction {
@@ -18,25 +22,18 @@ impl MSELoss {
         }
     }
 
-    pub fn measure<T: TensorNum + Cast<U>, U: TensorFloat>(&self, a: Tensor<T>, b: Tensor<T>) -> Tensor<U> {
-        let t = (a - b).cast::<U>().pow(2) * U::from(0.5).unwrap();
+    pub fn measure<T: FloatTensorRepr>(&self, a: Tensor, b: Tensor) -> Tensor {
+        let t = (a - b).pow(2) * 0.5;
         let a = t.data();
         let t_len = t.length();
-        let u_t_len = U::from(t_len).unwrap();
-        let mut s = <U as TensorElement>::zero();
+        let mut s = <T as TensorRepr>::zero();
         if let Some(reduction) = self.reduction {
-            s = a.iter().fold(<U as TensorElement>::zero(), |acc, x| acc + *x);
+            s = a.iter().fold(<T as TensorRepr>::zero(), |acc, x| acc + *x);
             if reduction == Reduction::MEAN {
-                s = s / u_t_len;
+                s = s / T::from(t_len).unwrap();
             }
         }
-        let inner = TensorImpl::from_op(
-            vec![s],
-            &[1],
-            vec![t.clone()],
-            Op::MSE(t_len),
-            t.device,
-        );
+        let inner = TensorImpl::from_op(vec![s], &[1], vec![t.clone()], Op::MSE(t_len), t.device());
         Tensor::new(inner)
     }
 }
@@ -59,7 +56,7 @@ impl CrossEntropyLoss {
         }
     }
 
-    pub fn measure<T: TensorNum>(&self, a: Tensor<T>, b: Tensor<T>) -> Tensor<T> {
+    pub fn measure<T: FloatTensorRepr>(&self, a: Tensor, b: Tensor) -> Tensor {
         todo!()
     }
 }

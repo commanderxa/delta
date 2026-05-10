@@ -4,29 +4,29 @@ use std::ops::Range;
 #[cfg(feature = "cuda")]
 use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
 use half::{bf16, f16};
-use num_traits::{Float, NumCast, ToPrimitive};
+use num_traits::{Float};
 
-#[cfg(feature = "cuda")]
 use crate::tensor::cast::Cast;
+use crate::tensor::storage_impl::StorageRepr;
 use crate::{DType, f8};
 
 #[cfg(not(feature = "cuda"))]
-pub trait TensorElement:
-    Copy
+pub trait TensorRepr:
+    'static
+    + Copy
     + Clone
     + Debug
     + Display
     + PartialEq
-    + 'static
     + Sized
     + std::ops::Add<Output = Self>
     + std::ops::Sub<Output = Self>
     + std::ops::Mul<Output = Self>
     + std::ops::Div<Output = Self>
     + std::ops::Neg<Output = Self>
-    + NumCast
-    + ToPrimitive
+    + Cast<Self>
     + PartialOrd
+    + StorageRepr
 {
     fn dtype() -> DType;
     fn zero() -> Self;
@@ -35,23 +35,26 @@ pub trait TensorElement:
 }
 
 #[cfg(feature = "cuda")]
-pub trait TensorElement:
-    Copy
+pub trait TensorRepr:
+    'static
+    + Copy
     + Clone
     + Debug
     + Display
     + PartialEq
-    + 'static
     + Sized
     + std::ops::Add<Output = Self>
+    + std::ops::AddAssign
     + std::ops::Sub<Output = Self>
+    + std::ops::SubAssign
     + std::ops::Mul<Output = Self>
+    + std::ops::MulAssign
     + std::ops::Div<Output = Self>
+    + std::ops::DivAssign
     + std::ops::Neg<Output = Self>
     + PartialOrd
-    + NumCast
-    + ToPrimitive
     + Cast<Self>
+    + StorageRepr
     + DeviceRepr
     + ValidAsZeroBits
 {
@@ -63,7 +66,7 @@ pub trait TensorElement:
 
 macro_rules! impl_tensor_element {
     ($ty:ty, $dtype:expr, $zero:expr, $one:expr, $max:expr) => {
-        impl TensorElement for $ty {
+        impl TensorRepr for $ty {
             fn dtype() -> DType {
                 $dtype
             }
@@ -112,80 +115,68 @@ impl_tensor_element!(f32, DType::Float32, 0.0, 1.0, f32::MAX);
 impl_tensor_element!(f64, DType::Float64, 0.0, 1.0, f64::MAX);
 // impl_tensor_element!(bool, DType::Bool, false, true, true);
 
-pub trait TensorNum: TensorElement {}
-
-impl TensorNum for i8 {}
-impl TensorNum for i16 {}
-impl TensorNum for i32 {}
-impl TensorNum for i64 {}
-impl TensorNum for f8 {}
-impl TensorNum for f16 {}
-impl TensorNum for bf16 {}
-impl TensorNum for f32 {}
-impl TensorNum for f64 {}
-
-pub trait TensorFloat: TensorNum + Float {
+pub trait FloatTensorRepr: TensorRepr + Float {
     fn neg_infinity() -> Self;
     fn random_range(range: Range<Self>) -> Self;
 }
 
-impl TensorFloat for f8 {
+impl FloatTensorRepr for f8 {
     fn neg_infinity() -> Self {
         f8::NEG_INFINITY
     }
 
     fn random_range(range: Range<Self>) -> Self {
         f8::from_f32(rand::random_range(
-            <f32 as NumCast>::from(range.start).unwrap()
-                ..<f32 as NumCast>::from(range.end).unwrap(),
+            <Self as Cast<f32>>::cast(range.start)
+                ..<Self as Cast<f32>>::cast(range.end),
         ))
     }
 }
-impl TensorFloat for f16 {
+impl FloatTensorRepr for f16 {
     fn neg_infinity() -> Self {
         f16::NEG_INFINITY
     }
 
     fn random_range(range: Range<Self>) -> Self {
         f16::from_f32(rand::random_range(
-            <f32 as NumCast>::from(range.start).unwrap()
-                ..<f32 as NumCast>::from(range.end).unwrap(),
+            <Self as Cast<f32>>::cast(range.start)
+                ..<Self as Cast<f32>>::cast(range.end),
         ))
     }
 }
-impl TensorFloat for bf16 {
+impl FloatTensorRepr for bf16 {
     fn neg_infinity() -> Self {
         bf16::NEG_INFINITY
     }
 
     fn random_range(range: Range<Self>) -> Self {
         bf16::from_f32(rand::random_range(
-            <f32 as NumCast>::from(range.start).unwrap()
-                ..<f32 as NumCast>::from(range.end).unwrap(),
+            <Self as Cast<f32>>::cast(range.start)
+                ..<Self as Cast<f32>>::cast(range.end),
         ))
     }
 }
-impl TensorFloat for f32 {
+impl FloatTensorRepr for f32 {
     fn neg_infinity() -> Self {
         f32::NEG_INFINITY
     }
 
     fn random_range(range: Range<Self>) -> Self {
         rand::random_range(
-            <f32 as NumCast>::from(range.start).unwrap()
-                ..<f32 as NumCast>::from(range.end).unwrap(),
+            <Self as Cast<f32>>::cast(range.start)
+                ..<Self as Cast<f32>>::cast(range.end),
         )
     }
 }
-impl TensorFloat for f64 {
+impl FloatTensorRepr for f64 {
     fn neg_infinity() -> Self {
         f64::NEG_INFINITY
     }
 
     fn random_range(range: Range<Self>) -> Self {
         rand::random_range(
-            <f64 as NumCast>::from(range.start).unwrap()
-                ..<f64 as NumCast>::from(range.end).unwrap(),
+            <Self as Cast<f64>>::cast(range.start)
+                ..<Self as Cast<f64>>::cast(range.end),
         )
     }
 }

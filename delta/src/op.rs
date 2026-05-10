@@ -1,9 +1,9 @@
-use crate::{Tensor, tensor::element::TensorElement};
+use crate::Tensor;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, PartialEq)]
 /// Operations that are available to apply to `Value`.
-pub enum Op<T: TensorElement> {
+pub enum Op {
     Add,
     Sub,
     Mul,
@@ -17,16 +17,16 @@ pub enum Op<T: TensorElement> {
         count: usize,
     },
     Pow(i32),
-    Exp(Tensor<T>),
+    Exp(Tensor),
     MatMul,
     Cross,
     ReLU,
-    Sigmoid(Tensor<T>),
-    Softmax(Tensor<T>, usize),
+    Sigmoid(Tensor),
+    Softmax(Tensor, usize),
     MSE(usize),
 }
 
-impl<T: TensorElement> std::fmt::Display for Op<T> {
+impl std::fmt::Display for Op {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Op::Add => write!(f, "Add"),

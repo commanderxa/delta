@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{ivalue::IValue, nn, tensor::element::TensorElement};
+use crate::{ivalue::IValue, nn, tensor::repr::FloatTensorRepr};
 
 /// # `Module` Trait
 ///
@@ -10,20 +10,20 @@ use crate::{ivalue::IValue, nn, tensor::element::TensorElement};
 /// - `module_name` - returns the name of module
 /// - `forward` - performs inference in the module (forward propagation)
 /// - `parameters` - returns all parameters that this module contains
-pub trait Module<T: TensorElement> {
+pub trait Module {
     /// Returns the name of module
     fn module_name(&self) -> String;
 
     /// `forward` - performs inference in the module (forward propagation)
-    fn forward(&self, args: Vec<IValue<T>>, kwargs: HashMap<String, IValue<T>>) -> IValue<T>;
+    fn forward(&self, args: Vec<IValue>, kwargs: HashMap<String, IValue>) -> IValue;
 
     /// Returns the submodules of module
-    fn submodules(&self) -> Vec<&dyn Module<T>> {
+    fn submodules(&self) -> Vec<&dyn Module> {
         vec![]
     }
 
     /// Returns the parameters of module
-    fn parameters(&self) -> Vec<nn::Parameter<T>> {
+    fn parameters(&self) -> Vec<nn::Parameter> {
         vec![]
     }
 }

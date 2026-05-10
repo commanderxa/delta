@@ -1,8 +1,8 @@
 macro_rules! check_device {
     ($first:expr $(, $rest:expr)*) => {{
-        let base = (*$first).device;
+        let base = (*$first).device();
         $(
-            let rest_device = (*$rest).device;
+            let rest_device = (*$rest).device();
             if rest_device != base {
                 panic!("{}", $crate::device::errors::DeviceError::DeviceMismatch {
                     expected: base,

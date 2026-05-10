@@ -1,63 +1,123 @@
 #[cfg(feature = "cuda")]
 use cudarc::driver::CudaSlice;
 
-use crate::{DType, device::Device, tensor::element::TensorElement};
+#[cfg(feature = "cuda")]
+use crate::tensor::storage_impl::CUDAStorage;
+use crate::{
+    DType,
+    device::Device,
+    tensor::{repr::TensorRepr, storage_impl::{CPUStorage, StorageRepr}},
+};
 
 #[derive(Debug)]
-pub enum Storage<T: TensorElement> {
-    CPU(Vec<T>),
+pub enum Storage {
+    CPU(CPUStorage),
     #[cfg(feature = "cuda")]
-    CUDA(CudaSlice<T>),
+    CUDA(CUDAStorage),
 }
 
-impl<T: TensorElement> Storage<T> {
-    pub fn from_slice(data: &[T], device: Device) -> Self {
+impl Storage {
+    pub fn from_slice<T: StorageRepr>(data: &[T], device: Device) -> Self {
         match device {
-            Device::CPU => Self::CPU(data.to_vec()),
+            Device::CPU => Self::CPU(T::into_cpu_storage(data)),
             #[cfg(feature = "cuda")]
-            Device::CUDA => Self::CUDA(Self::vec_to_cuda(data.to_vec())),
+            Device::CUDA => Self::CUDA(T::into_cuda_storage(data)),
         }
     }
 
-    pub fn replace_data(&mut self, data: Vec<T>) {
+    pub fn replace_data<T: StorageRepr>(&mut self, data: &[T]) {
         *self = match self {
-            Storage::CPU(..) => Storage::CPU(data),
+            Storage::CPU(..) => Storage::CPU(T::into_cpu_storage(data)),
             #[cfg(feature = "cuda")]
-            Storage::CUDA(..) => Storage::CUDA(Self::vec_to_cuda(data)),
+            Storage::CUDA(..) => Storage::CUDA(T::into_cuda_storage(data)),
         };
     }
 
     #[cfg(feature = "cuda")]
-    pub(crate) fn to_cuda_slice(data: &Vec<T>) -> CudaSlice<T> {
-        let stream = crate::cuda::current_stream();
-        stream.clone_htod(data).expect("failed to copy CPU -> GPU")
-    }
-
-    #[cfg(feature = "cuda")]
     pub fn to_cpu(&self) -> Self {
-        Storage::CPU(self.to_vec())
-    }
-
-    #[cfg(feature = "cuda")]
-    pub fn to_cuda(&self) -> Self {
-        let host = self.to_vec(); // works from any source device
-        let data = Self::to_cuda_slice(&host);
-        Storage::CUDA(data)
-    }
-
-    pub fn as_cpu(&self) -> &[T] {
         match self {
-            Storage::CPU(data) => data.as_slice(),
-            #[cfg(feature = "cuda")]
-            Storage::CUDA { .. } => panic!("Tensor is on CUDA, not CPU."),
+            Storage::CPU(_) => panic!("Storage is already on CPU."),
+            Storage::CUDA(s) => Storage::CPU(s.to_cpu()),
         }
     }
 
     #[cfg(feature = "cuda")]
-    pub fn as_cuda(&self) -> &CudaSlice<T> {
+    pub fn to_cuda(&self) -> Self {
+        match self {
+            Storage::CUDA(_) => panic!("Storage is already on CUDA."),
+            Storage::CPU(s) => Storage::CUDA(s.to_cuda()),
+        }
+    }
+
+    pub fn as_cpu<T: StorageRepr>(&self) -> &[T] {
+        match self {
+            Storage::CPU(data) => T::cpu_storage_as_slice(data).unwrap(),
+            #[cfg(feature = "cuda")]
+            Storage::CUDA(_) => panic!("Tensor is on CUDA, not CPU."),
+        }
+    }
+
+    pub fn as_cpu_mut<T: StorageRepr>(&mut self) -> &mut [T] {
+        match self {
+            Storage::CPU(data) => T::cpu_storage_as_slice_mut(data).expect("dtype mismatch"),
+            #[cfg(feature = "cuda")]
+            Storage::CUDA(_) => panic!("Storage is on CUDA, call .to_cpu() first"),
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    pub fn as_cuda<T: StorageRepr>(&self) -> &CudaSlice<T> {
         match self {
             Storage::CPU(_) => panic!("Tensor is on CPU, not CUDA."),
-            Storage::CUDA(data) => data,
+            Storage::CUDA(data) => T::cuda_storage_as_slice(data).unwrap(),
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    pub fn as_cuda_mut<T: StorageRepr>(&mut self) -> &mut CudaSlice<T> {
+        match self {
+            Storage::CPU(_) => panic!("Storage is on CUDA, call .to_cpu() first"),
+            #[cfg(feature = "cuda")]
+            Storage::CUDA(data) => T::cuda_storage_as_slice_mut(data).expect("dtype mismatch"),
+        }
+    }
+
+    pub fn iter<T: StorageRepr>(&self) -> std::slice::Iter<T> {
+        self.as_cpu::<T>().iter()
+    }
+
+    pub fn map_inplace<T: StorageRepr, F: FnMut(T) -> T>(&mut self, mut f: F) {
+        match self {
+            Storage::CPU(_) => {
+                for x in self.as_cpu_mut() {
+                    *x = f(*x);
+                }
+            }
+
+            #[cfg(feature = "cuda")]
+            Storage::CUDA(data) => {
+                let mut cpu = data.to_cpu();
+                for x in T::cpu_storage_as_slice_mut(&mut cpu).unwrap() {
+                    *x = f(*x);
+                }
+                *data = cpu.to_cuda();
+            }
+        }
+    }
+
+    pub fn cast_to<U: TensorRepr>(&self) -> Storage {
+        match self {
+            Storage::CPU(cpu) => Storage::CPU(cpu.cast_to::<U>()),
+            #[cfg(feature = "cuda")]
+            Storage::CUDA(_) => todo!("CUDA cast"),
+        }
+    }
+
+    pub fn fill(&mut self, value: f32) {
+        match self {
+            Storage::CPU(data) => data.fill_f32(value),
+            #[cfg(feature = "cuda")]
+            Storage::CUDA(data) => todo!(),
         }
     }
 
@@ -66,19 +126,6 @@ impl<T: TensorElement> Storage<T> {
             Storage::CPU(data) => data.len(),
             #[cfg(feature = "cuda")]
             Storage::CUDA(data) => data.len(),
-        }
-    }
-
-    pub fn fill(&mut self, value: T) {
-        match self {
-            Storage::CPU(data) => data.fill(value),
-            #[cfg(feature = "cuda")]
-            Storage::CUDA(data) => {
-                let stream = crate::cuda::current_stream();
-                let host = vec![value; data.len()];
-                let new_data = stream.clone_htod(&host).expect("fill htod failed");
-                *data = new_data;
-            }
         }
     }
 
@@ -91,89 +138,30 @@ impl<T: TensorElement> Storage<T> {
     }
 
     pub fn dtype(&self) -> DType {
-        T::dtype()
-    }
-
-    #[cfg(feature = "cuda")]
-    pub(crate) fn vec_to_cuda(data: Vec<T>) -> CudaSlice<T>
-    where
-        T: cudarc::driver::DeviceRepr,
-    {
-        let stream = crate::cuda::current_stream();
-        stream.clone_htod(&data).expect("failed to copy CPU -> GPU")
-    }
-
-    pub fn iter(&self) -> std::vec::IntoIter<T> {
-        self.to_vec().into_iter()
-    }
-
-    pub fn map_inplace<F>(&mut self, mut f: F)
-    where
-        F: FnMut(T) -> T,
-    {
         match self {
-            Storage::CPU(data) => {
-                for x in data.iter_mut() {
-                    *x = f(*x);
-                }
-            }
-
+            Storage::CPU(cpustorage) => cpustorage.dtype(),
             #[cfg(feature = "cuda")]
-            Storage::CUDA(data) => {
-                let stream = crate::cuda::current_stream();
-                let mut host = stream.clone_dtoh(data).expect("failed to copy GPU -> CPU");
-
-                for x in host.iter_mut() {
-                    *x = f(*x);
-                }
-
-                let new_data = stream.clone_htod(&host).expect("failed to copy CPU -> GPU");
-
-                *data = new_data;
-            }
-        }
-    }
-
-    #[cfg(feature = "cuda")]
-    pub(crate) fn to_vec_slice(data: &CudaSlice<T>) -> Vec<T> {
-        let stream = crate::cuda::current_stream();
-        stream.clone_dtoh(data).expect("failed to copy GPU -> CPU")
-    }
-
-    /// Materialize data as a CPU Vec (always safe to call)
-    pub fn to_vec(&self) -> Vec<T> {
-        match self {
-            Storage::CPU(data) => data.to_vec(),
-            #[cfg(feature = "cuda")]
-            Storage::CUDA(data) => Self::to_vec_slice(data),
+            Storage::CUDA(cudastorage) => cudastorage.dtype(),
         }
     }
 }
 
-impl<T: TensorElement> Clone for Storage<T> {
+impl Clone for Storage {
     fn clone(&self) -> Self {
         match self {
             Storage::CPU(data) => Storage::CPU(data.clone()),
             #[cfg(feature = "cuda")]
-            Storage::CUDA(data) => {
-                // allocate a new buffer and copy device → device
-                let stream = crate::cuda::current_stream();
-                let mut new_buf = stream.alloc_zeros::<T>(data.len()).expect("alloc failed");
-                stream
-                    .memcpy_dtod(data, &mut new_buf)
-                    .expect("dtod copy failed");
-                Storage::CUDA(new_buf)
-            }
+            Storage::CUDA(data) => Storage::CUDA(data.clone()),
         }
     }
 }
 
-impl<T: TensorElement> PartialEq for Storage<T> {
+impl PartialEq for Storage {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Storage::CPU(a), Storage::CPU(b)) => a == b,
             #[cfg(feature = "cuda")]
-            (Storage::CUDA(_), Storage::CUDA(_)) => self.to_vec() == other.to_vec(),
+            (Storage::CUDA(_), Storage::CUDA(_)) => self.to_cpu() == other.to_cpu(),
             #[cfg(feature = "cuda")]
             (Storage::CPU(_), Storage::CUDA(_)) => {
                 panic!("Expected all data to be on the same device.")

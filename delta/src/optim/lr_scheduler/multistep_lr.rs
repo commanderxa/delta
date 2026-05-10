@@ -1,15 +1,15 @@
-use crate::{optim::Optim, tensor::element::TensorFloat};
+use crate::{optim::Optim, tensor::repr::FloatTensorRepr};
 
 use super::Scheduler;
 
-pub struct MultiStepLR<T: TensorFloat> {
+pub struct MultiStepLR<T: FloatTensorRepr> {
     optimizer: Box<dyn Optim<T>>,
     pub milestones: Vec<usize>,
     pub gamma: T,
     count: usize,
 }
 
-impl<T: TensorFloat> MultiStepLR<T> {
+impl<T: FloatTensorRepr> MultiStepLR<T> {
     pub fn new(optimizer: Box<dyn Optim<T>>, milestones: &[usize], gamma: T) -> Self {
         Self {
             optimizer,
@@ -20,7 +20,7 @@ impl<T: TensorFloat> MultiStepLR<T> {
     }
 }
 
-impl<T: TensorFloat> Scheduler for MultiStepLR<T> {
+impl<T: FloatTensorRepr> Scheduler for MultiStepLR<T> {
     fn step(&mut self) -> () {
         for m in &self.milestones {
             if self.count == *m {
