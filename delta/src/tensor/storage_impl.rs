@@ -1,9 +1,16 @@
 #[cfg(feature = "cuda")]
 use crate::cuda::{array_to_cuda_slice, cuda_slice_to_array};
-use crate::{DType, f8, tensor::cast::{Cast, CastFrom}};
+use crate::{
+    DType, f8,
+    tensor::{
+        cast::{Cast, CastFrom},
+        repr::TensorRepr,
+    },
+};
 #[cfg(feature = "cuda")]
 use cudarc::driver::CudaSlice;
 use half::{bf16, f16};
+use num_traits::NumCast;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum CPUStorage {
@@ -37,10 +44,19 @@ macro_rules! cpu_storage_dispatch {
 }
 
 impl CPUStorage {
-    pub fn fill_f32(&mut self, value: f32) {
-        cpu_storage_dispatch!(self, v => {
-            v.fill(<f32 as Cast<_>>::cast(value))
-        })
+    pub fn fill<T: TensorRepr>(&mut self, value: T) {
+        match self {
+            CPUStorage::F8(v) => v.fill(<f8 as NumCast>::from(value).unwrap()),
+            CPUStorage::F16(v) => v.fill(<f16 as NumCast>::from(value).unwrap()),
+            CPUStorage::BF16(v) => v.fill(<bf16 as NumCast>::from(value).unwrap()),
+            CPUStorage::F32(v) => v.fill(<f32 as NumCast>::from(value).unwrap()),
+            CPUStorage::F64(v) => v.fill(<f64 as NumCast>::from(value).unwrap()),
+            CPUStorage::I8(v) => v.fill(<i8 as NumCast>::from(value).unwrap()),
+            CPUStorage::I16(v) => v.fill(<i16 as NumCast>::from(value).unwrap()),
+            CPUStorage::I32(v) => v.fill(<i32 as NumCast>::from(value).unwrap()),
+            CPUStorage::I64(v) => v.fill(<i64 as NumCast>::from(value).unwrap()),
+            CPUStorage::Bool(v) => todo!(),
+        }
     }
 
     #[cfg(feature = "cuda")]
@@ -142,7 +158,7 @@ pub enum CUDAStorage {
 
 #[cfg(feature = "cuda")]
 impl CUDAStorage {
-    pub fn fill_f32(&mut self, value: f32) {
+    pub fn fill_f32(&mut self, _: f32) {
         todo!()
     }
 

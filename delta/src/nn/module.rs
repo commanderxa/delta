@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{ivalue::IValue, nn, tensor::repr::FloatTensorRepr};
+use crate::{ivalue::IValue, nn};
 
 /// # `Module` Trait
 ///

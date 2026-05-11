@@ -60,10 +60,10 @@ impl Module for Linear {
         let _ = ones_shape.pop();
         ones_shape.push(1);
         let x = Tensor::cat(
-            &[x, crate::ones::<T>(&ones_shape, self.weights.device())],
+            &[x, crate::ones(&ones_shape, self.weights.device())],
             1,
         );
-        let x = linalg::matmul::<T>(x, weights.0);
+        let x = linalg::matmul(x, weights.0);
         IValue::Tensor(x)
     }
 }

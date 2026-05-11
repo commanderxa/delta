@@ -25,7 +25,7 @@ pub fn cross<T: TensorRepr>(a: Tensor, b: Tensor) -> Tensor {
         "Last dimension of Tensor `b` does not equal 3."
     );
 
-    let device = check_device!(&a, &b);
+    let device = crate::check_device!(&a, &b);
 
     let mut a = a;
     let mut b = b;

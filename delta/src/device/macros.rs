@@ -1,3 +1,4 @@
+#[macro_export]
 macro_rules! check_device {
     ($first:expr $(, $rest:expr)*) => {{
         let base = (*$first).device();
@@ -14,6 +15,7 @@ macro_rules! check_device {
     }};
 }
 
+#[macro_export]
 macro_rules! device_op {
     ($device:expr, cpu => $cpu_expr:expr, cuda => $cuda_expr:expr) => {{
         match $device {

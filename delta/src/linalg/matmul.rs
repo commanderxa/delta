@@ -1,9 +1,11 @@
+use crate::f8;
 use crate::{Tensor, TensorImpl, tensor::repr::TensorRepr};
 use crate::{device::Device, op::Op};
 #[cfg(feature = "cuda")]
 use cudarc::cublas::{
     Gemm, GemmConfig, StridedBatchedConfig, safe::CudaBlas, sys::cublasOperation_t,
 };
+use half::{bf16, f16};
 
 /// Matrix multiplication
 ///
@@ -12,7 +14,7 @@ use cudarc::cublas::{
 /// * b: `Tensor`
 ///
 /// The inner dimensions of the matrices must be the same.
-pub fn matmul<T: TensorRepr>(a: Tensor, b: Tensor) -> Tensor {
+pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
     // shapes of the tensors
     let mut a_shape: Vec<usize> = a.shape();
     let b_shape: Vec<usize> = b.shape();
@@ -33,7 +35,7 @@ pub fn matmul<T: TensorRepr>(a: Tensor, b: Tensor) -> Tensor {
         format!("({b_shape:?})").replace('[', "").replace(']', ""),
     );
 
-    let device = check_device!(&a, &b);
+    let device = crate::check_device!(&a, &b);
 
     // get batch dimensions if they exist
     let mut batches: Vec<usize> = vec![];
@@ -52,16 +54,16 @@ pub fn matmul<T: TensorRepr>(a: Tensor, b: Tensor) -> Tensor {
     // new shape
     let new_shape: Vec<usize> = batches.into_iter().chain(vec![m, n]).collect();
 
-    device_op!(device,
-        cpu => matmul_cpu::<T>(a, b, m, k, n, batch_prod, &new_shape),
+    crate::device_op!(device,
+        cpu => matmul_cpu(a, b, m, k, n, batch_prod, &new_shape),
         cuda => {
             let blas = CudaBlas::new(crate::cuda::current_stream()).unwrap();
-            matmul_batched_cuda::<T>(&blas, a, b, batch_prod, m, k, n, &new_shape)
+            matmul_batched_cuda(&blas, a, b, batch_prod, m, k, n, &new_shape)
         }
     )
 }
 
-fn matmul_cpu<T: TensorRepr>(
+fn matmul_cpu(
     a: Tensor,
     b: Tensor,
     m: usize,
@@ -70,37 +72,274 @@ fn matmul_cpu<T: TensorRepr>(
     batch_size: usize,
     new_shape: &[usize],
 ) -> Tensor {
-    // data of the tensors, the tensor b is transposed
-    let a_data = a.data::<T>();
-    let b_data = b.t().data();
+    match a.dtype() {
+        crate::DType::Float8 => {
+            let a_data: Vec<f8> = a.data();
+            // data of the tensors, the tensor b is transposed
+            let b_data = b.t().data();
+            let mut result = vec![f8::zero(); batch_size * m * n];
 
-    let mut result = vec![T::zero(); batch_size * m * n];
-
-    // iterate over the batch dimensions
-    // `_b` is a batch dimension
-    for _b in 0..batch_size {
-        // iterate over the result tensor, it zips the slices of the left and
-        // right tensors then it multiplies the two zipped values and returns
-        // the slice back, after it sums the vector to obtain the value
-        for i in 0..m {
-            for j in 0..n {
-                let b_data = &b_data[(j * k)..(j * k + k)];
-                result[_b * m * n + i * n + j] = a_data
-                    [(_b * m * k + i * k)..(_b * m * k + i * k + k)]
-                    .iter()
-                    .zip(b_data)
-                    .map(|(&a, &b)| a * b)
-                    .fold(T::zero(), |acc, x| acc + x)
+            // iterate over the batch dimensions
+            // `_b` is a batch dimension
+            for _b in 0..batch_size {
+                // iterate over the result tensor, it zips the slices of the left and
+                // right tensors then it multiplies the two zipped values and returns
+                // the slice back, after it sums the vector to obtain the value
+                for i in 0..m {
+                    for j in 0..n {
+                        let b_data = &b_data[(j * k)..(j * k + k)];
+                        result[_b * m * n + i * n + j] = a_data
+                            [(_b * m * k + i * k)..(_b * m * k + i * k + k)]
+                            .iter()
+                            .zip(b_data)
+                            .map(|(&a, &b)| a * b)
+                            .fold(f8::zero(), |acc, x| acc + x)
+                    }
+                }
             }
+            // add batch dimensions to the new shape
+            let inner =
+                TensorImpl::from_op(result, &new_shape, vec![a, b], Op::MatMul, Device::CPU);
+            Tensor::new(inner)
         }
+        crate::DType::Float16 => {
+            let a_data: Vec<f16> = a.data();
+            // data of the tensors, the tensor b is transposed
+            let b_data: Vec<f16> = b.t().data();
+            let mut result = vec![f16::zero(); batch_size * m * n];
+
+            // iterate over the batch dimensions
+            // `_b` is a batch dimension
+            for _b in 0..batch_size {
+                // iterate over the result tensor, it zips the slices of the left and
+                // right tensors then it multiplies the two zipped values and returns
+                // the slice back, after it sums the vector to obtain the value
+                for i in 0..m {
+                    for j in 0..n {
+                        let b_data = &b_data[(j * k)..(j * k + k)];
+                        result[_b * m * n + i * n + j] = a_data
+                            [(_b * m * k + i * k)..(_b * m * k + i * k + k)]
+                            .iter()
+                            .zip(b_data)
+                            .map(|(&a, &b)| a * b)
+                            .fold(f16::zero(), |acc, x| acc + x)
+                    }
+                }
+            }
+            // add batch dimensions to the new shape
+            let inner =
+                TensorImpl::from_op(result, &new_shape, vec![a, b], Op::MatMul, Device::CPU);
+            Tensor::new(inner)
+        }
+        crate::DType::BFloat16 => {
+            let a_data: Vec<bf16> = a.data();
+            // data of the tensors, the tensor b is transposed
+            let b_data: Vec<bf16> = b.t().data();
+            let mut result = vec![bf16::zero(); batch_size * m * n];
+
+            // iterate over the batch dimensions
+            // `_b` is a batch dimension
+            for _b in 0..batch_size {
+                // iterate over the result tensor, it zips the slices of the left and
+                // right tensors then it multiplies the two zipped values and returns
+                // the slice back, after it sums the vector to obtain the value
+                for i in 0..m {
+                    for j in 0..n {
+                        let b_data = &b_data[(j * k)..(j * k + k)];
+                        result[_b * m * n + i * n + j] = a_data
+                            [(_b * m * k + i * k)..(_b * m * k + i * k + k)]
+                            .iter()
+                            .zip(b_data)
+                            .map(|(&a, &b)| a * b)
+                            .fold(bf16::zero(), |acc, x| acc + x)
+                    }
+                }
+            }
+            // add batch dimensions to the new shape
+            let inner =
+                TensorImpl::from_op(result, &new_shape, vec![a, b], Op::MatMul, Device::CPU);
+            Tensor::new(inner)
+        }
+        crate::DType::Float32 => {
+            let a_data: Vec<f32> = a.data();
+            // data of the tensors, the tensor b is transposed
+            let b_data: Vec<f32> = b.t().data();
+            let mut result = vec![f32::zero(); batch_size * m * n];
+
+            // iterate over the batch dimensions
+            // `_b` is a batch dimension
+            for _b in 0..batch_size {
+                // iterate over the result tensor, it zips the slices of the left and
+                // right tensors then it multiplies the two zipped values and returns
+                // the slice back, after it sums the vector to obtain the value
+                for i in 0..m {
+                    for j in 0..n {
+                        let b_data = &b_data[(j * k)..(j * k + k)];
+                        result[_b * m * n + i * n + j] = a_data
+                            [(_b * m * k + i * k)..(_b * m * k + i * k + k)]
+                            .iter()
+                            .zip(b_data)
+                            .map(|(&a, &b)| a * b)
+                            .fold(f32::zero(), |acc, x| acc + x)
+                    }
+                }
+            }
+            // add batch dimensions to the new shape
+            let inner =
+                TensorImpl::from_op(result, &new_shape, vec![a, b], Op::MatMul, Device::CPU);
+            Tensor::new(inner)
+        }
+        crate::DType::Float64 => {
+            let a_data: Vec<f64> = a.data();
+            // data of the tensors, the tensor b is transposed
+            let b_data: Vec<f64> = b.t().data();
+            let mut result = vec![f64::zero(); batch_size * m * n];
+
+            // iterate over the batch dimensions
+            // `_b` is a batch dimension
+            for _b in 0..batch_size {
+                // iterate over the result tensor, it zips the slices of the left and
+                // right tensors then it multiplies the two zipped values and returns
+                // the slice back, after it sums the vector to obtain the value
+                for i in 0..m {
+                    for j in 0..n {
+                        let b_data = &b_data[(j * k)..(j * k + k)];
+                        result[_b * m * n + i * n + j] = a_data
+                            [(_b * m * k + i * k)..(_b * m * k + i * k + k)]
+                            .iter()
+                            .zip(b_data)
+                            .map(|(&a, &b)| a * b)
+                            .fold(f64::zero(), |acc, x| acc + x)
+                    }
+                }
+            }
+            // add batch dimensions to the new shape
+            let inner =
+                TensorImpl::from_op(result, &new_shape, vec![a, b], Op::MatMul, Device::CPU);
+            Tensor::new(inner)
+        }
+        crate::DType::Int8 => {
+            let a_data: Vec<i8> = a.data();
+            // data of the tensors, the tensor b is transposed
+            let b_data: Vec<i8> = b.t().data();
+            let mut result = vec![i8::zero(); batch_size * m * n];
+
+            // iterate over the batch dimensions
+            // `_b` is a batch dimension
+            for _b in 0..batch_size {
+                // iterate over the result tensor, it zips the slices of the left and
+                // right tensors then it multiplies the two zipped values and returns
+                // the slice back, after it sums the vector to obtain the value
+                for i in 0..m {
+                    for j in 0..n {
+                        let b_data = &b_data[(j * k)..(j * k + k)];
+                        result[_b * m * n + i * n + j] = a_data
+                            [(_b * m * k + i * k)..(_b * m * k + i * k + k)]
+                            .iter()
+                            .zip(b_data)
+                            .map(|(&a, &b)| a * b)
+                            .fold(i8::zero(), |acc, x| acc + x)
+                    }
+                }
+            }
+            // add batch dimensions to the new shape
+            let inner =
+                TensorImpl::from_op(result, &new_shape, vec![a, b], Op::MatMul, Device::CPU);
+            Tensor::new(inner)
+        }
+        crate::DType::Int16 => {
+            let a_data: Vec<i16> = a.data();
+            // data of the tensors, the tensor b is transposed
+            let b_data: Vec<i16> = b.t().data();
+            let mut result = vec![i16::zero(); batch_size * m * n];
+
+            // iterate over the batch dimensions
+            // `_b` is a batch dimension
+            for _b in 0..batch_size {
+                // iterate over the result tensor, it zips the slices of the left and
+                // right tensors then it multiplies the two zipped values and returns
+                // the slice back, after it sums the vector to obtain the value
+                for i in 0..m {
+                    for j in 0..n {
+                        let b_data = &b_data[(j * k)..(j * k + k)];
+                        result[_b * m * n + i * n + j] = a_data
+                            [(_b * m * k + i * k)..(_b * m * k + i * k + k)]
+                            .iter()
+                            .zip(b_data)
+                            .map(|(&a, &b)| a * b)
+                            .fold(i16::zero(), |acc, x| acc + x)
+                    }
+                }
+            }
+            // add batch dimensions to the new shape
+            let inner =
+                TensorImpl::from_op(result, &new_shape, vec![a, b], Op::MatMul, Device::CPU);
+            Tensor::new(inner)
+        }
+        crate::DType::Int32 => {
+            let a_data: Vec<i32> = a.data();
+            // data of the tensors, the tensor b is transposed
+            let b_data: Vec<i32> = b.t().data();
+            let mut result = vec![i32::zero(); batch_size * m * n];
+
+            // iterate over the batch dimensions
+            // `_b` is a batch dimension
+            for _b in 0..batch_size {
+                // iterate over the result tensor, it zips the slices of the left and
+                // right tensors then it multiplies the two zipped values and returns
+                // the slice back, after it sums the vector to obtain the value
+                for i in 0..m {
+                    for j in 0..n {
+                        let b_data = &b_data[(j * k)..(j * k + k)];
+                        result[_b * m * n + i * n + j] = a_data
+                            [(_b * m * k + i * k)..(_b * m * k + i * k + k)]
+                            .iter()
+                            .zip(b_data)
+                            .map(|(&a, &b)| a * b)
+                            .fold(i32::zero(), |acc, x| acc + x)
+                    }
+                }
+            }
+            // add batch dimensions to the new shape
+            let inner =
+                TensorImpl::from_op(result, &new_shape, vec![a, b], Op::MatMul, Device::CPU);
+            Tensor::new(inner)
+        }
+        crate::DType::Int64 => {
+            let a_data: Vec<i64> = a.data();
+            // data of the tensors, the tensor b is transposed
+            let b_data: Vec<i64> = b.t().data();
+            let mut result = vec![i64::zero(); batch_size * m * n];
+
+            // iterate over the batch dimensions
+            // `_b` is a batch dimension
+            for _b in 0..batch_size {
+                // iterate over the result tensor, it zips the slices of the left and
+                // right tensors then it multiplies the two zipped values and returns
+                // the slice back, after it sums the vector to obtain the value
+                for i in 0..m {
+                    for j in 0..n {
+                        let b_data = &b_data[(j * k)..(j * k + k)];
+                        result[_b * m * n + i * n + j] = a_data
+                            [(_b * m * k + i * k)..(_b * m * k + i * k + k)]
+                            .iter()
+                            .zip(b_data)
+                            .map(|(&a, &b)| a * b)
+                            .fold(i64::zero(), |acc, x| acc + x)
+                    }
+                }
+            }
+            // add batch dimensions to the new shape
+            let inner =
+                TensorImpl::from_op(result, &new_shape, vec![a, b], Op::MatMul, Device::CPU);
+            Tensor::new(inner)
+        }
+        crate::DType::Bool => todo!(),
     }
-    // add batch dimensions to the new shape
-    let inner = TensorImpl::from_op(result, &new_shape, vec![a, b], Op::MatMul, Device::CPU);
-    Tensor::new(inner)
 }
 
 #[cfg(feature = "cuda")]
-fn matmul_batched_cuda<T: TensorRepr>(
+fn matmul_batched_cuda(
     blas: &CudaBlas,
     a: Tensor,
     b: Tensor,

@@ -2,6 +2,7 @@ mod binary_ops_kernel;
 pub(crate) mod cast;
 pub mod dtype;
 pub(crate) mod impl_;
+#[macro_use]
 pub mod init;
 pub mod operations;
 pub(crate) mod promote_primitives;
@@ -1057,72 +1058,4 @@ impl Display for Tensor {
         let res = format!("Tensor({data})");
         write!(f, "{res}")
     }
-}
-
-// MACROS
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! __tensor_shape {
-    ([ $( $elem:tt ),* $(,)? ]) => {{
-        let mut shape = vec![0usize];
-        $(
-            let child = $crate::__tensor_shape!($elem);
-            if shape[0] == 0 {
-                shape.extend_from_slice(&child);
-            } else {
-                assert_eq!(
-                    &shape[1..],
-                    child.as_slice(),
-                    "tensor! elements must have consistent inner shapes"
-                );
-            }
-            shape[0] += 1;
-        )*
-        shape
-    }};
-
-    ( $scalar:expr ) => {
-        Vec::<usize>::new()
-    };
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! __tensor_flatten {
-    ( $out:ident ; [ $( $elem:tt ),* $(,)? ] ) => {{
-        $(
-            $crate::__tensor_flatten!($out ; $elem);
-        )*
-    }};
-
-    ( $out:ident ; $scalar:expr ) => {{
-        $out.push(($scalar) as f64);
-    }};
-}
-
-#[macro_export]
-macro_rules! tensor {
-    ($data:tt) => {{
-        let shape = $crate::__tensor_shape!($data);
-        let mut flat = Vec::new();
-        $crate::__tensor_flatten!(flat; $data);
-        $crate::tensor(&flat, &shape, Device::CPU)
-    }};
-}
-
-#[macro_export]
-macro_rules! randn {
-    ($($element:expr),+) => {{
-        use rand::Rng;
-        // get shape
-        let mut shape = Vec::new();
-        // fill the shape
-        $(shape.push($element);)*;
-        // pass the shape to the `randn` method
-        delta::randn(&shape, Device::CPU)
-    }};
-    ($($element:expr,)*) => {{
-        $crate::tensor::randn![$($element),*]
-    }};
 }

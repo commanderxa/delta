@@ -1,8 +1,10 @@
+use crate::DEFAULT_DTYPE;
+
 #[allow(non_camel_case_types)]
 pub type f8 = float8::F8E4M3;
 
-#[derive(Debug, Clone)]
-pub(crate) enum DType {
+#[derive(Debug, Clone, Copy)]
+pub enum DType {
     Float8,
     Float16,
     BFloat16,
@@ -66,3 +68,12 @@ pub const int32: DType = DType::Int32;
 pub const int64: DType = DType::Int64;
 #[allow(non_upper_case_globals)]
 pub const bool: DType = DType::Bool;
+
+
+pub fn get_default_dtype() -> DType {
+    *DEFAULT_DTYPE.read().unwrap()
+}
+
+pub fn set_default_dtype(dtype: DType) {
+    *DEFAULT_DTYPE.write().unwrap() = dtype;
+}

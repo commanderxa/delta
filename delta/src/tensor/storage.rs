@@ -113,11 +113,11 @@ impl Storage {
         }
     }
 
-    pub fn fill(&mut self, value: f32) {
+    pub fn fill<T: TensorRepr>(&mut self, value: T) {
         match self {
-            Storage::CPU(data) => data.fill_f32(value),
+            Storage::CPU(data) => data.fill(value),
             #[cfg(feature = "cuda")]
-            Storage::CUDA(data) => todo!(),
+            Storage::CUDA(_) => todo!(),
         }
     }
 

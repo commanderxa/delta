@@ -4,7 +4,7 @@ use std::ops::Range;
 #[cfg(feature = "cuda")]
 use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
 use half::{bf16, f16};
-use num_traits::{Float};
+use num_traits::{Float, ToPrimitive};
 
 use crate::tensor::cast::Cast;
 use crate::tensor::storage_impl::StorageRepr;
@@ -27,6 +27,7 @@ pub trait TensorRepr:
     + Cast<Self>
     + PartialOrd
     + StorageRepr
+    + ToPrimitive
 {
     fn dtype() -> DType;
     fn zero() -> Self;
@@ -55,6 +56,7 @@ pub trait TensorRepr:
     + PartialOrd
     + Cast<Self>
     + StorageRepr
+    + ToPrimitive
     + DeviceRepr
     + ValidAsZeroBits
 {
@@ -127,8 +129,7 @@ impl FloatTensorRepr for f8 {
 
     fn random_range(range: Range<Self>) -> Self {
         f8::from_f32(rand::random_range(
-            <Self as Cast<f32>>::cast(range.start)
-                ..<Self as Cast<f32>>::cast(range.end),
+            <Self as Cast<f32>>::cast(range.start)..<Self as Cast<f32>>::cast(range.end),
         ))
     }
 }
@@ -139,8 +140,7 @@ impl FloatTensorRepr for f16 {
 
     fn random_range(range: Range<Self>) -> Self {
         f16::from_f32(rand::random_range(
-            <Self as Cast<f32>>::cast(range.start)
-                ..<Self as Cast<f32>>::cast(range.end),
+            <Self as Cast<f32>>::cast(range.start)..<Self as Cast<f32>>::cast(range.end),
         ))
     }
 }
@@ -151,8 +151,7 @@ impl FloatTensorRepr for bf16 {
 
     fn random_range(range: Range<Self>) -> Self {
         bf16::from_f32(rand::random_range(
-            <Self as Cast<f32>>::cast(range.start)
-                ..<Self as Cast<f32>>::cast(range.end),
+            <Self as Cast<f32>>::cast(range.start)..<Self as Cast<f32>>::cast(range.end),
         ))
     }
 }
@@ -163,8 +162,7 @@ impl FloatTensorRepr for f32 {
 
     fn random_range(range: Range<Self>) -> Self {
         rand::random_range(
-            <Self as Cast<f32>>::cast(range.start)
-                ..<Self as Cast<f32>>::cast(range.end),
+            <Self as Cast<f32>>::cast(range.start)..<Self as Cast<f32>>::cast(range.end),
         )
     }
 }
@@ -175,8 +173,7 @@ impl FloatTensorRepr for f64 {
 
     fn random_range(range: Range<Self>) -> Self {
         rand::random_range(
-            <Self as Cast<f64>>::cast(range.start)
-                ..<Self as Cast<f64>>::cast(range.end),
+            <Self as Cast<f64>>::cast(range.start)..<Self as Cast<f64>>::cast(range.end),
         )
     }
 }
