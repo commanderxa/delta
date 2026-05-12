@@ -6,7 +6,10 @@ use crate::tensor::storage_impl::CUDAStorage;
 use crate::{
     DType,
     device::Device,
-    tensor::{repr::TensorRepr, storage_impl::{CPUStorage, StorageRepr}},
+    tensor::{
+        repr::TensorRepr,
+        storage_impl::{CPUStorage, StorageRepr},
+    },
 };
 
 #[derive(Debug)]
@@ -82,7 +85,7 @@ impl Storage {
         }
     }
 
-    pub fn iter<T: StorageRepr>(&self) -> std::slice::Iter<T> {
+    pub fn iter<T: StorageRepr>(&self) -> std::slice::Iter<'_, T> {
         self.as_cpu::<T>().iter()
     }
 

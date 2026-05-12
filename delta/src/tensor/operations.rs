@@ -1,7 +1,7 @@
 use crate::{Tensor, tensor::repr::TensorRepr};
 
-pub fn sum<T: TensorRepr>(input: &Tensor, dim: Option<usize>, keepdim: bool) -> Tensor {
-    input.sum::<T>(dim, keepdim)
+pub fn sum(input: &Tensor, dim: Option<usize>, keepdim: bool) -> Tensor {
+    input.sum(dim, keepdim)
 }
 
 pub fn mean(input: &Tensor, dim: Option<usize>, keepdim: bool) -> Tensor {

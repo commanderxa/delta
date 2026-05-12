@@ -1,9 +1,6 @@
 use half::{bf16, f16};
 
-use crate::{
-    DType, Device, Tensor, TensorImpl, f8, get_default_dtype,
-    tensor::repr::{FloatTensorRepr, TensorRepr},
-};
+use crate::{DType, Device, Tensor, TensorImpl, f8, get_default_dtype, tensor::repr::TensorRepr};
 
 /// Create a new tensor from the given data and the shape.
 pub fn tensor<T: TensorRepr>(data: &[T], shape: &[usize], device: Device) -> Tensor {
@@ -17,16 +14,44 @@ pub fn tensor<T: TensorRepr>(data: &[T], shape: &[usize], device: Device) -> Ten
 }
 
 /// Creates a new tensor with the random values between 0 and 1
-pub fn randn<T: FloatTensorRepr>(shape: &[usize], device: Device) -> Tensor {
-    let mut inner = TensorImpl::from_slice(
-        &vec![<T as TensorRepr>::zero(); shape.iter().product()],
-        shape,
-        device,
-    );
-    Tensor::fill_tensor(
-        &mut inner,
-        <T as TensorRepr>::zero()..<T as TensorRepr>::one(),
-    );
+pub fn randn(shape: &[usize], device: Device) -> Tensor {
+    let inner = match get_default_dtype() {
+        DType::Float8 => {
+            let mut inner =
+                TensorImpl::from_slice(&vec![f8::zero(); shape.iter().product()], shape, device);
+            Tensor::fill_tensor(&mut inner, f8::zero()..f8::one());
+            inner
+        }
+        DType::Float16 => {
+            let mut inner =
+                TensorImpl::from_slice(&vec![f16::zero(); shape.iter().product()], shape, device);
+            Tensor::fill_tensor(&mut inner, f16::zero()..f16::one());
+            inner
+        }
+        DType::BFloat16 => {
+            let mut inner =
+                TensorImpl::from_slice(&vec![bf16::zero(); shape.iter().product()], shape, device);
+            Tensor::fill_tensor(&mut inner, bf16::zero()..bf16::one());
+            inner
+        }
+        DType::Float32 => {
+            let mut inner =
+                TensorImpl::from_slice(&vec![f32::zero(); shape.iter().product()], shape, device);
+            Tensor::fill_tensor(&mut inner, f32::zero()..f32::one());
+            inner
+        }
+        DType::Float64 => {
+            let mut inner =
+                TensorImpl::from_slice(&vec![f64::zero(); shape.iter().product()], shape, device);
+            Tensor::fill_tensor(&mut inner, f64::zero()..f64::one());
+            inner
+        }
+        DType::Int8 => unimplemented!(),
+        DType::Int16 => unimplemented!(),
+        DType::Int32 => unimplemented!(),
+        DType::Int64 => unimplemented!(),
+        DType::Bool => unimplemented!(),
+    };
     Tensor::new(inner)
 }
 
@@ -61,7 +86,7 @@ pub fn zeros_like<T: TensorRepr>(tensor: &Tensor, device: Device) -> Tensor {
 
 fn _ones<T: TensorRepr>(shape: &[usize], device: Device) -> Tensor {
     let mut inner = TensorImpl::new::<T>(shape, device);
-    inner.data.fill(T::zero());
+    inner.data.fill(T::one());
     Tensor::new(inner)
 }
 
@@ -84,7 +109,7 @@ pub fn ones(shape: &[usize], device: Device) -> Tensor {
 /// Creates a new tensor like the inputted one, where all the values are 1.
 pub fn ones_like<T: TensorRepr>(tensor: &Tensor, device: Device) -> Tensor {
     let mut inner = TensorImpl::new::<f32>(&tensor.shape(), device);
-    inner.data.fill(f32::zero());
+    inner.data.fill(f32::one());
     Tensor::new(inner)
 }
 
@@ -168,39 +193,99 @@ macro_rules! __tensor_shape {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! __tensor_flatten {
+    // Array arm — $inner is the raw content inside brackets
     ( $out:ident ; [ $( $elem:tt ),* $(,)? ] ) => {{
         $(
             $crate::__tensor_flatten!($out ; $elem);
         )*
     }};
 
+    // Nested array passed as a tt — unwrap it
+    ( $out:ident ; [ $( $inner:tt )* ] ) => {{
+        $crate::__tensor_flatten!($out ; [ $($inner)* ]);
+    }};
+
+    // Scalar
     ( $out:ident ; $scalar:expr ) => {{
-        $out.push(($scalar) as f64);
+        $out.push($crate::tensor::cast::Cast::cast($scalar));
     }};
 }
 
 #[macro_export]
 macro_rules! tensor {
-    ($data:tt) => {{
-        use delta::Device;
-        delta::tensor!($data, Device::CPU)
+    ([ $($data:tt),* ]) => {{
+        delta::tensor!([ $($data),* ], delta::get_default_dtype(), delta::cpu)
     }};
-    ($data:tt, $device:expr) => {{
-        let shape = $crate::__tensor_shape!($data);
-        let mut flat = Vec::new();
-        $crate::__tensor_flatten!(flat; $data);
-        $crate::tensor(&flat, &shape, $device)
+    ([ $($data:tt),* ], $dtype:expr) => {{
+        delta::tensor!([ $($data),* ], $dtype, delta::cpu)
+    }};
+    ([ $($data:tt),* ], $device:expr) => {{
+        delta::tensor!([ $($data),* ] delta::get_default_dtype(), $device)
+    }};
+    ([ $($data:tt),* ], $dtype:expr, $device:expr) => {{
+        let shape = $crate::__tensor_shape!([ $($data),* ]);
+        match $dtype {
+            delta::float8 => {
+                let mut flat: Vec<float8::F8E4M3> = Vec::new();
+                $crate::__tensor_flatten!(flat; [ $($data),* ]);
+                $crate::tensor(&flat, &shape, $device)
+            }
+            delta::float16 => {
+                let mut flat: Vec<half::f16> = Vec::new();
+                $crate::__tensor_flatten!(flat; [ $($data),* ]);
+                $crate::tensor(&flat, &shape, $device)
+            }
+            delta::bfloat16 => {
+                let mut flat: Vec<half::bf16> = Vec::new();
+                $crate::__tensor_flatten!(flat; [ $($data),* ]);
+                $crate::tensor(&flat, &shape, $device)
+            }
+            delta::float32 => {
+                let mut flat: Vec<f32> = Vec::new();
+                $crate::__tensor_flatten!(flat; [ $($data),* ]);
+                $crate::tensor(&flat, &shape, $device)
+            }
+            delta::float64 => {
+                let mut flat: Vec<f64> = Vec::new();
+                $crate::__tensor_flatten!(flat; [ $($data),* ]);
+                $crate::tensor(&flat, &shape, $device)
+            }
+            delta::int8 => {
+                let mut flat: Vec<i8> = Vec::new();
+                $crate::__tensor_flatten!(flat; [ $($data),* ]);
+                $crate::tensor(&flat, &shape, $device)
+            }
+            delta::int16 => {
+                let mut flat: Vec<i16> = Vec::new();
+                $crate::__tensor_flatten!(flat; [ $($data),* ]);
+                $crate::tensor(&flat, &shape, $device)
+            }
+            delta::int32 => {
+                let mut flat: Vec<i32> = Vec::new();
+                $crate::__tensor_flatten!(flat; [ $($data),* ]);
+                $crate::tensor(&flat, &shape, $device)
+            }
+            delta::int64 => {
+                let mut flat: Vec<i64> = Vec::new();
+                $crate::__tensor_flatten!(flat; [ $($data),* ]);
+                $crate::tensor(&flat, &shape, $device)
+            }
+            delta::bool => {
+                let mut flat: Vec<bool> = Vec::new();
+                $crate::__tensor_flatten!(flat; [ $($data),* ]);
+                $crate::tensor(&flat, &shape, $device)
+            }
+        }
     }};
 }
 
 #[macro_export]
 macro_rules! randn {
     ($($element:expr),+) => {{
-        use delta::Device;
-        randn!($($element),+; Device::CPU)
+        delta::randn!($($element),+; delta::cpu)
     }};
     ($($element:expr),+; $device:expr) => {{
-        let mut shape = Vec::new();
+        let mut shape: Vec<usize> = Vec::new();
         $(shape.push($element);)*
         delta::randn(&shape, $device)
     }};

@@ -11,17 +11,17 @@ mod tests {
 
     #[test]
     fn zero_grad() {
-        let a = nn::Parameter(delta::tensor(&[1., 2., 3., 4., 5., 6.], &[2, 3]));
-        let b = nn::Parameter(delta::ones(&[2, 3]));
+        let a = nn::Parameter(delta::tensor(&[1., 2., 3., 4., 5., 6.], &[2, 3], delta::cpu).cast(delta::float32));
+        let b = nn::Parameter(delta::ones(&[2, 3], delta::cpu).cast(delta::float32));
         let optim = SGD::new(vec![a.clone(), b.clone()], 1e-3);
         let c = delta::sum(&(a.0.clone() * b.0.clone()), None, false);
         c.backward();
-        assert_ne!(a.grad().unwrap().iter().sum::<f64>(), 0.0);
-        assert_ne!(b.grad().unwrap().iter().sum::<f64>(), 0.0);
+        assert_ne!(a.grad().unwrap().data().iter().sum::<f32>(), 0.0);
+        assert_ne!(b.grad().unwrap().data().iter().sum::<f32>(), 0.0);
         optim.step();
         optim.zero_grad();
-        assert_eq!(a.grad().unwrap().iter().sum::<f64>(), 0.0);
-        assert_eq!(b.grad().unwrap().iter().sum::<f64>(), 0.0);
+        assert_eq!(a.grad().unwrap().data().iter().sum::<f32>(), 0.0);
+        assert_eq!(b.grad().unwrap().data().iter().sum::<f32>(), 0.0);
     }
 
     #[test]
@@ -30,7 +30,7 @@ mod tests {
         let optim = SGD::new(mlp.parameters(), 1e-1);
         optim.zero_grad();
 
-        let x = delta::randn(&[10, 4]);
+        let x = delta::randn(&[10, 4], delta::cpu);
         let criterion = nn::MSELoss::default();
 
         let (args, kwargs) = ivalue![[x.clone()]];
@@ -38,7 +38,7 @@ mod tests {
         out = out.squeeze(&[]);
         let loss = criterion.measure(
             out.clone(),
-            delta::tensor(&[1., 0., 1., 0., 1., 0., 1., 1., 0., 1.], &[10]),
+            delta::tensor(&[1., 0., 1., 0., 1., 0., 1., 1., 0., 1.], &[10], delta::cpu),
         );
 
         loss.backward();

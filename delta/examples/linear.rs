@@ -4,9 +4,9 @@ use delta::{
 };
 
 fn main() {
-    let linear = Linear::new::<f32>(20, 10, true);
-    let x = delta::randn::<f32>(&[2, 20], delta::device::Device::CPU);
-    println!("Weights: {}", linear.weights.0);
+    let linear = Linear::new(20, 10, true);
+    let x = delta::randn(&[2, 20], delta::cpu);
+    println!("Weights: {:?}", linear.weights.0);
     println!("IN:\n{x}");
     let (args, kwargs) = ivalue![[x]];
     let out = linear.forward(args, kwargs).unwrap_tensor();

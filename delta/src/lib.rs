@@ -15,10 +15,11 @@ use std::sync::RwLock;
 
 // define short paths
 pub use tensor::Tensor;
-pub use device::Device;
+pub use device::*;
 pub use tensor::dtype::*;
 pub use tensor::init::*;
 pub use tensor::operations::*;
+// pub use delta_macros::tensor;
 
 // short paths for crate-wide used
 pub(crate) use tensor::impl_::TensorImpl;

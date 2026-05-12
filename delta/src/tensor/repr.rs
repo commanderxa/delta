@@ -18,16 +18,20 @@ pub trait TensorRepr:
     + Debug
     + Display
     + PartialEq
-    + Sized
-    + std::ops::Add<Output = Self>
-    + std::ops::Sub<Output = Self>
-    + std::ops::Mul<Output = Self>
-    + std::ops::Div<Output = Self>
-    + std::ops::Neg<Output = Self>
-    + Cast<Self>
     + PartialOrd
+    + Sized
+    + Cast<Self>
+    + Cast<bool>
+    + Cast<f8>
+    + Cast<f16>
+    + Cast<bf16>
+    + Cast<f32>
+    + Cast<f64>
+    + Cast<i8>
+    + Cast<i16>
+    + Cast<i32>
+    + Cast<i64>
     + StorageRepr
-    + ToPrimitive
 {
     fn dtype() -> DType;
     fn zero() -> Self;
@@ -43,20 +47,20 @@ pub trait TensorRepr:
     + Debug
     + Display
     + PartialEq
-    + Sized
-    + std::ops::Add<Output = Self>
-    + std::ops::AddAssign
-    + std::ops::Sub<Output = Self>
-    + std::ops::SubAssign
-    + std::ops::Mul<Output = Self>
-    + std::ops::MulAssign
-    + std::ops::Div<Output = Self>
-    + std::ops::DivAssign
-    + std::ops::Neg<Output = Self>
     + PartialOrd
+    + Sized
     + Cast<Self>
+    + Cast<bool>
+    + Cast<f8>
+    + Cast<f16>
+    + Cast<bf16>
+    + Cast<f32>
+    + Cast<f64>
+    + Cast<i8>
+    + Cast<i16>
+    + Cast<i32>
+    + Cast<i64>
     + StorageRepr
-    + ToPrimitive
     + DeviceRepr
     + ValidAsZeroBits
 {
@@ -115,9 +119,34 @@ impl_tensor_element!(
 );
 impl_tensor_element!(f32, DType::Float32, 0.0, 1.0, f32::MAX);
 impl_tensor_element!(f64, DType::Float64, 0.0, 1.0, f64::MAX);
-// impl_tensor_element!(bool, DType::Bool, false, true, true);
+impl_tensor_element!(bool, DType::Bool, false, true, true);
 
-pub trait FloatTensorRepr: TensorRepr + Float {
+pub trait NumTensorRepr:
+    TensorRepr
+    + std::ops::Add<Output = Self>
+    + std::ops::AddAssign
+    + std::ops::Sub<Output = Self>
+    + std::ops::SubAssign
+    + std::ops::Mul<Output = Self>
+    + std::ops::MulAssign
+    + std::ops::Div<Output = Self>
+    + std::ops::DivAssign
+    + std::ops::Neg<Output = Self>
+    + ToPrimitive
+{
+}
+
+impl NumTensorRepr for f8 {}
+impl NumTensorRepr for f16 {}
+impl NumTensorRepr for bf16 {}
+impl NumTensorRepr for f32 {}
+impl NumTensorRepr for f64 {}
+impl NumTensorRepr for i8 {}
+impl NumTensorRepr for i16 {}
+impl NumTensorRepr for i32 {}
+impl NumTensorRepr for i64 {}
+
+pub trait FloatTensorRepr: NumTensorRepr + Float {
     fn neg_infinity() -> Self;
     fn random_range(range: Range<Self>) -> Self;
 }

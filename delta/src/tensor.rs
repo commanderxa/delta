@@ -1,11 +1,12 @@
 mod binary_ops_kernel;
-pub(crate) mod cast;
+pub mod cast;
 pub mod dtype;
 pub(crate) mod impl_;
 #[macro_use]
 pub mod init;
 pub mod operations;
-pub(crate) mod promote_primitives;
+#[macro_use]
+pub(crate) mod promote;
 pub(crate) mod repr;
 pub(crate) mod storage;
 pub(crate) mod storage_impl;
@@ -13,11 +14,13 @@ pub(crate) mod storage_impl;
 use std::{cell::RefCell, fmt::Display, ops::Range, rc::Rc};
 
 use half::{bf16, f16};
+use num_traits::Float;
 
 use crate::{
     DType, Storage,
     backward::Backward,
     device::Device,
+    f8,
     op::Op,
     tensor::{
         cast::Cast,
@@ -48,7 +51,7 @@ impl Tensor {
     }
 
     /// Returns the shape of the tensor as vector.
-    pub(crate) fn shape(&self) -> Vec<usize> {
+    pub fn shape(&self) -> Vec<usize> {
         self.inner.borrow().shape.clone()
     }
 
@@ -61,7 +64,7 @@ impl Tensor {
         self.shape().iter().product()
     }
 
-    pub(crate) fn storage(&self) -> Storage {
+    pub fn storage(&self) -> Storage {
         self.inner.borrow().data.clone()
     }
 
@@ -86,7 +89,7 @@ impl Tensor {
     }
 
     /// Returns an owned copy of tensor strides
-    pub(crate) fn stride(&self) -> Vec<usize> {
+    pub fn stride(&self) -> Vec<usize> {
         self.inner.borrow().stride.clone()
     }
 
@@ -125,12 +128,12 @@ impl Tensor {
     /// The tensor property `requires_grad` is `true` by default, which means
     /// that the `Tensor` has a gradient, but this gradient might be sent to
     /// `None` if is not necessary.
-    pub fn requires_grad<T: TensorRepr>(self, value: bool) -> Self {
+    pub fn requires_grad(self, value: bool) -> Self {
         if value {
             let grad = match self.device() {
-                Device::CPU => crate::create_grad::<T>(&self.shape(), self.device()),
+                Device::CPU => self.init_grad(),
                 #[cfg(feature = "cuda")]
-                Device::CUDA => crate::create_grad::<T>(&self.shape(), self.device()).cuda(),
+                Device::CUDA => self.init_grad().cuda(),
             };
             self.inner.borrow_mut().grad = Some(grad);
         } else {
@@ -139,68 +142,98 @@ impl Tensor {
         self
     }
 
-    pub fn sum<T: TensorRepr>(&self, dim: Option<usize>, keepdim: bool) -> Tensor {
-        match dim {
-            None => {
-                let value: T = self.data().iter().fold(T::zero(), |acc, x| acc + *x);
-                let shape = if keepdim {
-                    vec![1; self.shape().len().max(1)]
-                } else {
-                    vec![1]
-                };
-                let inner = TensorImpl::from_op(
-                    vec![value],
-                    &shape,
-                    vec![self.clone()],
-                    Op::Sum { dim: None, keepdim },
-                    self.device(),
-                );
-                Tensor::new(inner)
-            }
-            Some(dim) => {
-                assert!(dim < self.shape().len(), "sum: dim out of range");
-
-                let input = self.data();
-                let outer: usize = self.shape()[..dim].iter().product();
-                let reduce: usize = self.shape()[dim];
-                let inner: usize = self.shape()[dim + 1..].iter().product();
-
-                let mut out = vec![T::zero(); outer * inner];
-
-                for o in 0..outer {
-                    for i in 0..inner {
-                        let mut acc = T::zero();
-                        for r in 0..reduce {
-                            let idx = o * reduce * inner + r * inner + i;
-                            acc = acc + input[idx];
-                        }
-                        out[o * inner + i] = acc;
-                    }
-                }
-
-                let mut out_shape = self.shape().clone();
-                if keepdim {
-                    out_shape[dim] = 1;
-                } else {
-                    out_shape.remove(dim);
-                    if out_shape.is_empty() {
-                        out_shape.push(1);
-                    }
-                }
-
-                let inner_data = TensorImpl::from_op(
-                    out,
-                    &out_shape,
-                    vec![self.clone()],
-                    Op::Sum {
-                        dim: Some(dim),
-                        keepdim,
-                    },
-                    self.device(),
-                );
-                Tensor::new(inner_data)
-            }
+    pub(crate) fn init_grad(&self) -> Tensor {
+        let shape = self.shape();
+        let len = shape.iter().product();
+        match self.dtype() {
+            DType::Float8 => crate::tensor(&vec![f8::zero(); len], &shape, self.device()),
+            DType::Float16 => crate::tensor(&vec![f16::zero(); len], &shape, self.device()),
+            DType::BFloat16 => crate::tensor(&vec![bf16::zero(); len], &shape, self.device()),
+            DType::Float32 => crate::tensor(&vec![f32::zero(); len], &shape, self.device()),
+            DType::Float64 => crate::tensor(&vec![f64::zero(); len], &shape, self.device()),
+            DType::Int8 => panic!("Only floating point tensors can require gradients."),
+            DType::Int16 => panic!("Only floating point tensors can require gradients."),
+            DType::Int32 => panic!("Only floating point tensors can require gradients."),
+            DType::Int64 => panic!("Only floating point tensors can require gradients."),
+            DType::Bool => panic!("Only floating point tensors can require gradients."),
         }
+    }
+
+    pub fn sum(&self, dim: Option<usize>, keepdim: bool) -> Tensor {
+        let inner_data = match self.dtype() {
+            DType::Float8 => todo!(),
+            DType::Float16 => todo!(),
+            DType::BFloat16 => todo!(),
+            DType::Float32 => match dim {
+                None => {
+                    let value = self
+                        .data()
+                        .iter()
+                        .fold(f32::zero(), |acc, x: &f32| acc + *x);
+                    let shape = if keepdim {
+                        vec![1; self.shape().len().max(1)]
+                    } else {
+                        vec![1]
+                    };
+                    TensorImpl::from_op(
+                        vec![value],
+                        &shape,
+                        vec![self.clone()],
+                        Op::Sum { dim: None, keepdim },
+                        self.device(),
+                    )
+                }
+                Some(dim) => {
+                    assert!(dim < self.shape().len(), "sum: dim out of range");
+
+                    let input = self.data::<f32>();
+                    let outer: usize = self.shape()[..dim].iter().product();
+                    let reduce: usize = self.shape()[dim];
+                    let inner: usize = self.shape()[dim + 1..].iter().product();
+
+                    let mut out = vec![f32::zero(); outer * inner];
+
+                    for o in 0..outer {
+                        for i in 0..inner {
+                            let mut acc = f32::zero();
+                            for r in 0..reduce {
+                                let idx = o * reduce * inner + r * inner + i;
+                                acc = acc + input[idx];
+                            }
+                            out[o * inner + i] = acc;
+                        }
+                    }
+
+                    let mut out_shape = self.shape().clone();
+                    if keepdim {
+                        out_shape[dim] = 1;
+                    } else {
+                        out_shape.remove(dim);
+                        if out_shape.is_empty() {
+                            out_shape.push(1);
+                        }
+                    }
+
+                    TensorImpl::from_op(
+                        out,
+                        &out_shape,
+                        vec![self.clone()],
+                        Op::Sum {
+                            dim: Some(dim),
+                            keepdim,
+                        },
+                        self.device(),
+                    )
+                }
+            },
+            DType::Float64 => todo!(),
+            DType::Int8 => todo!(),
+            DType::Int16 => todo!(),
+            DType::Int32 => todo!(),
+            DType::Int64 => todo!(),
+            DType::Bool => todo!(),
+        };
+        Tensor::new(inner_data)
     }
 
     pub fn mean(&self, dim: Option<usize>, keepdim: bool) -> Tensor {
@@ -335,7 +368,7 @@ impl Tensor {
     /// Tensor of shape (2, 3) might be reshaped to (3, 2), (6, 1), (1, 6).
     /// Tensor can be reshaped into any shape, only if the length of this shape
     /// is the same as the length of the previous shape.
-    pub fn reshape<T: TensorRepr>(&self, shape: &[usize]) -> Self {
+    pub fn reshape(&self, shape: &[usize]) -> Self {
         assert_eq!(
             self.length(),
             shape.iter().product(),
@@ -348,41 +381,54 @@ impl Tensor {
             return self.view(shape);
         }
         let mut mask = vec![0; self.shape().len()];
-        let mut data = vec![T::zero(); self.length()];
-        // iterate over storage data
-        for d in data.iter_mut() {
-            // compute index of past position of data
-            *d = self.data()[self
-                .stride()
-                .iter()
-                .zip(&mask)
-                .map(|(a, b)| a * b)
-                .sum::<usize>()];
-            // iterate over shape
-            for j in (0..self.shape().len()).rev() {
-                // skip the properly filled dims
-                if self.shape()[j] - 1 == mask[j] {
-                    continue;
+        match self.dtype() {
+            DType::Float8 => todo!(),
+            DType::Float16 => todo!(),
+            DType::BFloat16 => todo!(),
+            DType::Float32 => {
+                let mut data = vec![f32::zero(); self.length()];
+                // iterate over storage data
+                for d in data.iter_mut() {
+                    // compute index of past position of data
+                    *d = self.data()[self
+                        .stride()
+                        .iter()
+                        .zip(&mask)
+                        .map(|(a, b)| a * b)
+                        .sum::<usize>()];
+                    // iterate over shape
+                    for j in (0..self.shape().len()).rev() {
+                        // skip the properly filled dims
+                        if self.shape()[j] - 1 == mask[j] {
+                            continue;
+                        }
+                        // increment the necessary mask dim
+                        mask[j] += 1;
+                        // set to 0 all prevous shape dims
+                        for k in ((j + 1)..self.shape().len()).rev() {
+                            mask[k] = 0;
+                        }
+                        break;
+                    }
                 }
-                // increment the necessary mask dim
-                mask[j] += 1;
-                // set to 0 all prevous shape dims
-                for k in ((j + 1)..self.shape().len()).rev() {
-                    mask[k] = 0;
+                let mut stride = vec![1; shape.len()];
+                // compute stride
+                for i in (0..shape.len() - 1).rev() {
+                    stride[i] = shape[i + 1] * stride[i + 1];
                 }
-                break;
+                let t = self.clone();
+                t.inner.borrow_mut().data.replace_data(&data);
+                t.inner.borrow_mut().shape = shape.to_vec();
+                t.inner.borrow_mut().stride = stride;
+                t
             }
+            DType::Float64 => todo!(),
+            DType::Int8 => todo!(),
+            DType::Int16 => todo!(),
+            DType::Int32 => todo!(),
+            DType::Int64 => todo!(),
+            DType::Bool => todo!(),
         }
-        let mut stride = vec![1; shape.len()];
-        // compute stride
-        for i in (0..shape.len() - 1).rev() {
-            stride[i] = shape[i + 1] * stride[i + 1];
-        }
-        let t = self.clone();
-        t.inner.borrow_mut().data.replace_data(&data);
-        t.inner.borrow_mut().shape = shape.to_vec();
-        t.inner.borrow_mut().stride = stride;
-        t
     }
 
     /// Inserts a dimension of size 1 at a specified location in shape.
@@ -472,26 +518,68 @@ impl Tensor {
     /// Exponents each value of the `Tensor`.
     ///
     /// `exp(x)` => `e^(x)`.
-    pub fn exp<T: FloatTensorRepr>(&self) -> Tensor {
-        let data: Vec<T> = self
-            .data()
-            .into_iter()
-            .map(|x: T| {
-                let u: T = x.cast();
-                u.exp()
-            })
-            .collect();
-        let inner = TensorImpl::from_op(
-            data,
-            &self.shape(),
-            vec![self.clone()],
-            Op::Exp(self.clone()),
-            self.device(),
-        );
+    pub fn exp(&self) -> Tensor {
+        let inner = match self.dtype() {
+            DType::Float8 => {
+                let data = self.data::<f8>().iter().map(|x| x.exp()).collect();
+                TensorImpl::from_op(
+                    data,
+                    &self.shape(),
+                    vec![self.clone()],
+                    Op::Exp(self.clone()),
+                    self.device(),
+                )
+            }
+            DType::Float16 => {
+                let data = self.data::<f16>().iter().map(|x| x.exp()).collect();
+                TensorImpl::from_op(
+                    data,
+                    &self.shape(),
+                    vec![self.clone()],
+                    Op::Exp(self.clone()),
+                    self.device(),
+                )
+            }
+            DType::BFloat16 => {
+                let data = self.data::<bf16>().iter().map(|x| x.exp()).collect();
+                TensorImpl::from_op(
+                    data,
+                    &self.shape(),
+                    vec![self.clone()],
+                    Op::Exp(self.clone()),
+                    self.device(),
+                )
+            }
+            DType::Float32 => {
+                let data = self.data::<f32>().iter().map(|x| x.exp()).collect();
+                TensorImpl::from_op(
+                    data,
+                    &self.shape(),
+                    vec![self.clone()],
+                    Op::Exp(self.clone()),
+                    self.device(),
+                )
+            }
+            DType::Float64 => {
+                let data = self.data::<f64>().iter().map(|x| x.exp()).collect();
+                TensorImpl::from_op(
+                    data,
+                    &self.shape(),
+                    vec![self.clone()],
+                    Op::Exp(self.clone()),
+                    self.device(),
+                )
+            }
+            DType::Int8 => todo!(),
+            DType::Int16 => todo!(),
+            DType::Int32 => todo!(),
+            DType::Int64 => todo!(),
+            DType::Bool => todo!(),
+        };
         Tensor::new(inner)
     }
 
-    pub fn contiguous<T: TensorRepr>(&self) -> Self {
+    pub fn contiguous(&self) -> Self {
         // already contiguous — no work needed
         if self.is_contiguous() {
             return self.clone();
@@ -503,49 +591,62 @@ impl Tensor {
         let strides = self.stride();
 
         let total: usize = shape.iter().product();
-        let mut new_data = vec![T::zero(); total];
+        let inner = match self.dtype() {
+            DType::Float8 => todo!(),
+            DType::Float16 => todo!(),
+            DType::BFloat16 => todo!(),
+            DType::Float32 => {
+                let mut new_data = vec![f32::zero(); total];
 
-        for flat_idx in 0..total {
-            // flat index -> nd index in current shape
-            let mut nd_idx = vec![0usize; shape.len()];
-            let mut remainder = flat_idx;
-            for d in (0..shape.len()).rev() {
-                nd_idx[d] = remainder % shape[d];
-                remainder /= shape[d];
+                for flat_idx in 0..total {
+                    // flat index -> nd index in current shape
+                    let mut nd_idx = vec![0usize; shape.len()];
+                    let mut remainder = flat_idx;
+                    for d in (0..shape.len()).rev() {
+                        nd_idx[d] = remainder % shape[d];
+                        remainder /= shape[d];
+                    }
+
+                    // nd index -> flat index in source data via strides
+                    let src_idx: usize = nd_idx
+                        .iter()
+                        .zip(strides.iter())
+                        .map(|(&i, &s)| i * s)
+                        .sum();
+
+                    new_data[flat_idx] = old_data[src_idx];
+                }
+
+                // compute new contiguous row-major strides
+                let mut new_strides = vec![1usize; shape.len()];
+                for d in (0..shape.len() - 1).rev() {
+                    new_strides[d] = new_strides[d + 1] * shape[d + 1];
+                }
+
+                let device = self.device();
+
+                match device {
+                    Device::CPU => TensorImpl::from_slice(&new_data, &shape, device),
+                    #[cfg(feature = "cuda")]
+                    Device::CUDA => {
+                        use crate::cuda::array_to_cuda_slice;
+
+                        let _inner = &self.inner.borrow();
+                        TensorImpl::from_cuda(
+                            array_to_cuda_slice(&new_data),
+                            &shape,
+                            _inner._prev.clone(),
+                            _inner._op.clone(),
+                        )
+                    }
+                }
             }
-
-            // nd index -> flat index in source data via strides
-            let src_idx: usize = nd_idx
-                .iter()
-                .zip(strides.iter())
-                .map(|(&i, &s)| i * s)
-                .sum();
-
-            new_data[flat_idx] = old_data[src_idx];
-        }
-
-        // compute new contiguous row-major strides
-        let mut new_strides = vec![1usize; shape.len()];
-        for d in (0..shape.len() - 1).rev() {
-            new_strides[d] = new_strides[d + 1] * shape[d + 1];
-        }
-
-        let device = self.device();
-
-        let inner = match device {
-            Device::CPU => TensorImpl::from_slice(&new_data, &shape, device),
-            #[cfg(feature = "cuda")]
-            Device::CUDA => {
-                use crate::cuda::array_to_cuda_slice;
-
-                let _inner = &self.inner.borrow();
-                TensorImpl::from_cuda(
-                    array_to_cuda_slice(&new_data),
-                    &shape,
-                    _inner._prev.clone(),
-                    _inner._op.clone(),
-                )
-            }
+            DType::Float64 => todo!(),
+            DType::Int8 => todo!(),
+            DType::Int16 => todo!(),
+            DType::Int32 => todo!(),
+            DType::Int64 => todo!(),
+            DType::Bool => todo!(),
         };
 
         Self {
@@ -609,42 +710,58 @@ impl Tensor {
 
         let device = a.device();
 
-        let mut mask = vec![0; a.shape().len()];
-        let mut data = vec![<f32 as Cast<f32>>::cast(0.); a.length()];
-        // iterate over storage data
-        for d in data.iter_mut() {
-            // compute index of past position of data
-            let a_i = a.data::<f32>()[a
-                .stride()
-                .iter()
-                .zip(&mask)
-                .map(|(a, b)| a * b)
-                .sum::<usize>()];
-            let b_i: f32 = b.data()[b
-                .stride()
-                .iter()
-                .zip(&mask)
-                .map(|(a, b)| a * b)
-                .sum::<usize>()];
-            // write the result for particular element based on the operation
-            *d = match op {
-                Op::Add => a_i + b_i,
-                Op::Sub => a_i - b_i,
-                Op::Mul => a_i * b_i,
-                _ => unreachable!(),
-            };
-            for j in (0..a.shape().len()).rev() {
-                if a.shape()[j] - 1 == mask[j] {
-                    continue;
+        promote_tensors!(&mut a, &mut b);
+
+        let inner = match a.dtype() {
+            DType::Float8 => todo!(),
+            DType::Float16 => todo!(),
+            DType::BFloat16 => todo!(),
+            DType::Float32 => {
+                let mut mask = vec![0; a.shape().len()];
+                let mut data = vec![Cast::cast(0.); a.length()];
+                // iterate over storage data
+                for d in data.iter_mut() {
+                    // compute index of past position of data
+                    let a_i = a.data::<f32>()[a
+                        .stride()
+                        .iter()
+                        .zip(&mask)
+                        .map(|(a, b)| a * b)
+                        .sum::<usize>()];
+                    let b_i: f32 = b.data()[b
+                        .stride()
+                        .iter()
+                        .zip(&mask)
+                        .map(|(a, b)| a * b)
+                        .sum::<usize>()];
+                    // write the result for particular element based on the operation
+                    *d = match op {
+                        Op::Add => a_i + b_i,
+                        Op::Sub => a_i - b_i,
+                        Op::Mul => a_i * b_i,
+                        _ => unreachable!(),
+                    };
+                    for j in (0..a.shape().len()).rev() {
+                        if a.shape()[j] - 1 == mask[j] {
+                            continue;
+                        }
+                        mask[j] += 1;
+                        for k in ((j + 1)..a.shape().len()).rev() {
+                            mask[k] = 0;
+                        }
+                        break;
+                    }
                 }
-                mask[j] += 1;
-                for k in ((j + 1)..a.shape().len()).rev() {
-                    mask[k] = 0;
-                }
-                break;
+                TensorImpl::from_op(data, &a.shape(), vec![a, b], op, device)
             }
-        }
-        let inner = TensorImpl::from_op(data, &a.shape(), vec![a, b], op, device);
+            DType::Float64 => todo!(),
+            DType::Int8 => todo!(),
+            DType::Int16 => todo!(),
+            DType::Int32 => todo!(),
+            DType::Int64 => todo!(),
+            DType::Bool => todo!(),
+        };
+
         Self::new(inner)
     }
 
@@ -737,24 +854,62 @@ impl Tensor {
         Tensor::new(inner_data)
     }
 
-    pub fn cast<U: TensorRepr>(self) -> Tensor {
+    pub fn cast(self, dtype: DType) -> Tensor {
         let shape = self.shape();
-        let new_storage = self.storage().cast_to::<U>();
+        let new_storage = match dtype {
+            DType::Float8 => self.storage().cast_to::<f8>(),
+            DType::Float16 => self.storage().cast_to::<f16>(),
+            DType::BFloat16 => self.storage().cast_to::<bf16>(),
+            DType::Float32 => self.storage().cast_to::<f32>(),
+            DType::Float64 => self.storage().cast_to::<f64>(),
+            DType::Int8 => self.storage().cast_to::<i8>(),
+            DType::Int16 => self.storage().cast_to::<i16>(),
+            DType::Int32 => self.storage().cast_to::<i32>(),
+            DType::Int64 => self.storage().cast_to::<i64>(),
+            DType::Bool => self.storage().cast_to::<bool>(),
+        };
         let inner = TensorImpl::from_storage(new_storage, &shape);
         Tensor::new(inner)
+    }
+
+    pub fn cast_(&mut self, dtype: DType) {
+        let new_storage = match dtype {
+            DType::Float8 => self.storage().cast_to::<f8>(),
+            DType::Float16 => self.storage().cast_to::<f16>(),
+            DType::BFloat16 => self.storage().cast_to::<bf16>(),
+            DType::Float32 => self.storage().cast_to::<f32>(),
+            DType::Float64 => self.storage().cast_to::<f64>(),
+            DType::Int8 => self.storage().cast_to::<i8>(),
+            DType::Int16 => self.storage().cast_to::<i16>(),
+            DType::Int32 => self.storage().cast_to::<i32>(),
+            DType::Int64 => self.storage().cast_to::<i64>(),
+            DType::Bool => self.storage().cast_to::<bool>(),
+        };
+        self.inner.borrow_mut().data = new_storage;
     }
 
     /// Backward
     ///
     /// Computes the gradients of all the tensors that have been interacting and
     /// have `requires_grad` set to `true`.
-    pub fn backward<T: TensorRepr>(&self) {
+    pub fn backward(&self) {
         assert!(
             self.length() == 1,
             "grad can be implicitly created only for scalar outputs"
         );
 
-        self.add_to_grad(crate::tensor(&[T::one()], &[1], self.device()));
+        match self.dtype() {
+            DType::Float8 => self.add_to_grad(crate::tensor(&[f8::one()], &[1], self.device())),
+            DType::Float16 => self.add_to_grad(crate::tensor(&[f16::one()], &[1], self.device())),
+            DType::BFloat16 => self.add_to_grad(crate::tensor(&[bf16::one()], &[1], self.device())),
+            DType::Float32 => self.add_to_grad(crate::tensor(&[f32::one()], &[1], self.device())),
+            DType::Float64 => self.add_to_grad(crate::tensor(&[f64::one()], &[1], self.device())),
+            DType::Int8 => panic!("Only floating point tensors can require gradients."),
+            DType::Int16 => panic!("Only floating point tensors can require gradients."),
+            DType::Int32 => panic!("Only floating point tensors can require gradients."),
+            DType::Int64 => panic!("Only floating point tensors can require gradients."),
+            DType::Bool => panic!("Only floating point tensors can require gradients."),
+        }
         self._backward()
     }
 
@@ -834,14 +989,110 @@ impl Tensor {
 
     /// Converts the tensor to a `String`, so that it can be printed.
     fn tensor_to_str(&self, tensor_str: String, level: usize, range: Range<usize>) -> String {
+        // TODO: for different data types
         let mut width = 1;
-        for i in self.data::<f64>() {
-            let s = (i.floor() as i64).to_string();
-            if s.len() > width {
-                width = s.len();
+        width = match self.dtype() {
+            DType::Float8 => {
+                for i in self.data::<f8>() {
+                    let s = (i.floor().to_f32() as i64).to_string();
+                    if s.len() > width {
+                        width = s.len();
+                    }
+                }
+                width += 5;
+                width
             }
-        }
-        width += 5;
+            DType::Float16 => {
+                for i in self.data::<f16>() {
+                    let s = (i.floor().to_f32() as i64).to_string();
+                    if s.len() > width {
+                        width = s.len();
+                    }
+                }
+                width += 5;
+                width
+            }
+            DType::BFloat16 => {
+                for i in self.data::<bf16>() {
+                    let s = (i.floor().to_f32() as i64).to_string();
+                    if s.len() > width {
+                        width = s.len();
+                    }
+                }
+                width += 5;
+                width
+            }
+            DType::Float32 => {
+                for i in self.data::<f32>() {
+                    let s = (i.floor() as i64).to_string();
+                    if s.len() > width {
+                        width = s.len();
+                    }
+                }
+                width += 5;
+                width
+            }
+            DType::Float64 => {
+                for i in self.data::<f64>() {
+                    let s = (i.floor() as i64).to_string();
+                    if s.len() > width {
+                        width = s.len();
+                    }
+                }
+                width += 5;
+                width
+            }
+            DType::Int8 => {
+                for i in self.data::<i8>() {
+                    let s = i.to_string();
+                    if s.len() > width {
+                        width = s.len();
+                    }
+                }
+                width += 1;
+                width
+            }
+            DType::Int16 => {
+                for i in self.data::<i16>() {
+                    let s = i.to_string();
+                    if s.len() > width {
+                        width = s.len();
+                    }
+                }
+                width += 1;
+                width
+            }
+            DType::Int32 => {
+                for i in self.data::<i32>() {
+                    let s = i.to_string();
+                    if s.len() > width {
+                        width = s.len();
+                    }
+                }
+                width += 1;
+                width
+            }
+            DType::Int64 => {
+                for i in self.data::<i64>() {
+                    let s = i.to_string();
+                    if s.len() > width {
+                        width = s.len();
+                    }
+                }
+                width += 1;
+                width
+            }
+            DType::Bool => {
+                for i in self.data::<bool>() {
+                    let s = i.to_string();
+                    if s.len() > width {
+                        width = s.len();
+                    }
+                }
+                width += 1;
+                width
+            }
+        };
         self._tensor_to_str(tensor_str, level, range, width)
     }
 
@@ -974,7 +1225,7 @@ impl Tensor {
             if shape_size - 1 == level {
                 let s = (item[i]).to_string();
                 if s.len() < width {
-                    spaces = width - (s.len() + 5);
+                    spaces = width - (s.len() + 1);
                 }
                 for _ in 0..spaces {
                     result.push(' ');
@@ -991,7 +1242,7 @@ impl Tensor {
                 for j in 0..self.shape()[level + 1] {
                     let s = (item[i + j] as i64).to_string();
                     if s.len() < width {
-                        spaces = width - (s.len() + 5);
+                        spaces = width - (s.len() + 1);
                     }
                     for _ in 0..spaces {
                         result.push(' ');

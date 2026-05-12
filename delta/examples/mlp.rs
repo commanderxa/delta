@@ -14,37 +14,34 @@ fn main() {
     let optim = SGD::new(mlp.parameters(), 1e-1);
 
     let data = vec![
-        delta::tensor(&[9., 3.], &[2]),
-        delta::tensor(&[2., 3.], &[2]),
-        delta::tensor(&[3., 7.], &[2]),
-        delta::tensor(&[8., 6.], &[2]),
-        delta::tensor(&[4., 4.], &[2]),
-        delta::tensor(&[4., 1.], &[2]),
-        delta::tensor(&[5., 2.], &[2]),
-        delta::tensor(&[2., 5.], &[2]),
-        delta::tensor(&[5., 6.], &[2]),
-        delta::tensor(&[7., 2.], &[2]),
-        delta::tensor(&[9., 1.], &[2]),
+        delta::tensor!([9., 3.]),
+        delta::tensor!([2., 3.]),
+        delta::tensor!([3., 7.]),
+        delta::tensor!([8., 6.]),
+        delta::tensor!([4., 4.]),
+        delta::tensor!([4., 1.]),
+        delta::tensor!([5., 2.]),
+        delta::tensor!([2., 5.]),
+        delta::tensor!([5., 6.]),
+        delta::tensor!([7., 2.]),
+        delta::tensor!([9., 1.]),
     ];
     let targets = vec![
-        delta::tensor(&[0.], &[1]),
-        delta::tensor(&[1.], &[1]),
-        delta::tensor(&[1.], &[1]),
-        delta::tensor(&[1.], &[1]),
-        delta::tensor(&[1.], &[1]),
-        delta::tensor(&[0.], &[1]),
-        delta::tensor(&[0.], &[1]),
-        delta::tensor(&[1.], &[1]),
-        delta::tensor(&[1.], &[1]),
-        delta::tensor(&[0.], &[1]),
-        delta::tensor(&[0.], &[1]),
+        delta::tensor!([0.]),
+        delta::tensor!([1.]),
+        delta::tensor!([1.]),
+        delta::tensor!([1.]),
+        delta::tensor!([1.]),
+        delta::tensor!([0.]),
+        delta::tensor!([0.]),
+        delta::tensor!([1.]),
+        delta::tensor!([1.]),
+        delta::tensor!([0.]),
+        delta::tensor!([0.]),
     ];
 
-    let test_data = vec![
-        delta::tensor(&[6., 6.], &[2]),
-        delta::tensor(&[8., 2.], &[2]),
-    ];
-    let test_targets = vec![delta::tensor(&[1.], &[1]), delta::tensor(&[0.], &[1])];
+    let test_data = vec![delta::tensor!([6., 6.]), delta::tensor!([8., 2.])];
+    let test_targets = vec![delta::tensor!([1.]), delta::tensor!([0.])];
 
     for epoch in 1..=epochs {
         let mut losses = 0.0;

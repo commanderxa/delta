@@ -1,6 +1,6 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
-use crate::{Storage, Tensor, op::Op, tensor::repr::TensorRepr};
+use crate::{Storage, Tensor, op::Op, tensor::repr::NumTensorRepr};
 
 impl Add for Tensor {
     type Output = Tensor;
@@ -30,10 +30,7 @@ impl Div for Tensor {
     type Output = Tensor;
 
     fn div(self, rhs: Self) -> Self::Output {
-        let lhs_f = self.cast::<f32>();
-        let rhs_f = rhs.cast::<f32>().pow(-1);
-        // dispatch to a float-typed element-wise div kernel
-        (lhs_f * rhs_f).cast::<f32>()
+        self * rhs.pow(-1)
     }
 }
 
@@ -90,7 +87,7 @@ impl Neg for Tensor {
                 }
                 super::storage_impl::CPUStorage::Bool(v) => {
                     for x in v.iter_mut() {
-                        *x != *x;
+                        *x = !*x;
                     }
                 }
             },
@@ -101,7 +98,7 @@ impl Neg for Tensor {
     }
 }
 
-impl<T: TensorRepr> Add<T> for Tensor {
+impl<T: NumTensorRepr> Add<T> for Tensor {
     type Output = Tensor;
     fn add(self, rhs: T) -> Self::Output {
         self.inner.borrow_mut().data.map_inplace(|x: T| x + rhs);
@@ -109,7 +106,7 @@ impl<T: TensorRepr> Add<T> for Tensor {
     }
 }
 
-impl<T: TensorRepr> AddAssign<T> for Tensor {
+impl<T: NumTensorRepr> AddAssign<T> for Tensor {
     fn add_assign(&mut self, rhs: T) {
         match &mut self.inner.borrow_mut().data {
             Storage::CPU(data) => {
@@ -125,7 +122,7 @@ impl<T: TensorRepr> AddAssign<T> for Tensor {
     }
 }
 
-impl<T: TensorRepr> Sub<T> for Tensor {
+impl<T: NumTensorRepr> Sub<T> for Tensor {
     type Output = Tensor;
     fn sub(self, rhs: T) -> Self::Output {
         self.inner.borrow_mut().data.map_inplace(|x: T| x - rhs);
@@ -133,7 +130,7 @@ impl<T: TensorRepr> Sub<T> for Tensor {
     }
 }
 
-impl<T: TensorRepr> SubAssign<T> for Tensor {
+impl<T: NumTensorRepr> SubAssign<T> for Tensor {
     fn sub_assign(&mut self, rhs: T) {
         match &mut self.inner.borrow_mut().data {
             Storage::CPU(data) => {
@@ -149,7 +146,7 @@ impl<T: TensorRepr> SubAssign<T> for Tensor {
     }
 }
 
-impl<T: TensorRepr> Mul<T> for Tensor {
+impl<T: NumTensorRepr> Mul<T> for Tensor {
     type Output = Tensor;
     fn mul(self, rhs: T) -> Self::Output {
         self.inner.borrow_mut().data.map_inplace(|x: T| x * rhs);
@@ -157,7 +154,7 @@ impl<T: TensorRepr> Mul<T> for Tensor {
     }
 }
 
-impl<T: TensorRepr> MulAssign<T> for Tensor {
+impl<T: NumTensorRepr> MulAssign<T> for Tensor {
     fn mul_assign(&mut self, rhs: T) {
         match &mut self.inner.borrow_mut().data {
             Storage::CPU(data) => {
@@ -173,7 +170,7 @@ impl<T: TensorRepr> MulAssign<T> for Tensor {
     }
 }
 
-impl<T: TensorRepr> Div<T> for Tensor {
+impl<T: NumTensorRepr> Div<T> for Tensor {
     type Output = Tensor;
     fn div(self, rhs: T) -> Self::Output {
         self.inner.borrow_mut().data.map_inplace(|x: T| x / rhs);
@@ -181,7 +178,7 @@ impl<T: TensorRepr> Div<T> for Tensor {
     }
 }
 
-impl<T: TensorRepr> DivAssign<T> for Tensor {
+impl<T: NumTensorRepr> DivAssign<T> for Tensor {
     fn div_assign(&mut self, rhs: T) {
         match &mut self.inner.borrow_mut().data {
             Storage::CPU(data) => {

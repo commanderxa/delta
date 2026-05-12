@@ -18,3 +18,9 @@ impl std::fmt::Display for Device {
         }
     }
 }
+
+#[allow(non_upper_case_globals)]
+pub const cpu: Device = Device::CPU;
+#[allow(non_upper_case_globals)]
+#[cfg(feature = "cuda")]
+pub const cuda: Device = Device::CUDA;

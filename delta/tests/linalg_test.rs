@@ -5,20 +5,20 @@ mod tests {
     #[test]
     /// Matrix multiplication
     fn matmul_2d() {
-        let a = delta::tensor(&[0., 1., 2., 3., 4., 5.], &[2, 3]);
-        let b: Tensor = delta::tensor(&[6., 7., 8., 9., 10., 11.], &[3, 2]);
-        let c = delta::tensor(&[28., 31., 100., 112.], &[2, 2]);
+        let a = delta::tensor(&[0., 1., 2., 3., 4., 5.], &[2, 3], delta::cpu);
+        let b: Tensor = delta::tensor(&[6., 7., 8., 9., 10., 11.], &[3, 2], delta::cpu);
+        let c = delta::tensor(&[28., 31., 100., 112.], &[2, 2], delta::cpu);
         let mm = linalg::matmul(a, b);
         assert_eq!(mm.data(), c.data());
-        assert_eq!(mm.shape, c.shape);
+        assert_eq!(mm.shape(), c.shape());
     }
 
     #[test]
     #[should_panic]
     /// Matrix multiplication
     fn matmul_2d_panic() {
-        let a: Tensor = delta::tensor(&[6., 7., 8., 9., 10., 11.], &[3, 2]);
-        let b = delta::tensor(&[28., 31., 100., 112.], &[2, 2]);
+        let a: Tensor = delta::tensor(&[6., 7., 8., 9., 10., 11.], &[3, 2], delta::cpu);
+        let b = delta::tensor(&[28., 31., 100., 112.], &[2, 2], delta::cpu);
         linalg::matmul(b, a);
     }
 
@@ -32,31 +32,37 @@ mod tests {
                 35., 36., 37., 38., 39., 40.,
             ],
             &[2, 4, 5],
+            delta::cpu,
         );
-        let b = delta::tensor(&[9., 5., 3., 2., 6., 9., 5., 3., 2., 6.0], &[5, 2]);
+        let b = delta::tensor(
+            &[9., 5., 3., 2., 6., 9., 5., 3., 2., 6.0],
+            &[5, 2],
+            delta::cpu,
+        );
         let right = delta::tensor(
             &[
                 63.0000, 78.0000, 188.0000, 203.0000, 313.0000, 328.0000, 438.0000, 453.0000,
                 563.0000, 578.0000, 688.0000, 703.0000, 813.0000, 828.0000, 938.0000, 953.0000,
             ],
             &[2, 4, 2],
+            delta::cpu,
         );
         let c = linalg::matmul(a.clone(), b.clone());
         assert_eq!(c.data(), right.data());
-        assert_eq!(c.shape, right.shape);
+        assert_eq!(c.shape(), right.shape());
     }
 
     #[test]
     fn cross_1d() {
-        let a = delta::tensor(&[0.6, -20.5, 5.8], &[3]);
-        let b = delta::tensor(&[10.2, -4.6, -34.], &[3]);
+        let a = delta::tensor(&[0.6, -20.5, 5.8], &[3], delta::cpu);
+        let b = delta::tensor(&[10.2, -4.6, -34.], &[3], delta::cpu);
         let c = linalg::cross(a.clone(), b.clone());
         assert_eq!(vec![723.6800, 79.5600, 206.3400], c.data());
     }
 
     #[test]
     fn cross_multidim() {
-        let a = delta::ones(&[3, 2, 3, 2, 2, 3]);
+        let a = delta::ones(&[3, 2, 3, 2, 2, 3], delta::cpu);
         let b = delta::tensor(
             &[
                 1.9269, 1.4873, 0.9007, -2.1055, 0.6784, -1.2345, -0.0431, -1.6047, -0.7521,
@@ -67,6 +73,7 @@ mod tests {
                 -1.1845, 1.3835, -1.2024, 0.7078, -1.0759, 0.5357, 1.1754, 0.5612,
             ],
             &[3, 1, 3, 1, 2, 3],
+            delta::cpu,
         );
         let c = delta::linalg::cross(a.clone(), b.clone());
         let correct = vec![
@@ -93,8 +100,8 @@ mod tests {
             -1.6508, 2.5681, -1.2081, -1.3599, -1.7837, -0.1266, 1.9103, -0.6142, -0.0255, 0.6397,
             -1.7837, -0.1266, 1.9103, -0.6142, -0.0255, 0.6397,
         ];
-        assert_eq!(c.shape, a.shape);
-        assert_eq!(c.stride, a.stride);
+        assert_eq!(c.shape(), a.shape());
+        assert_eq!(c.stride(), a.stride());
         let c_data = c.data();
         for i in 0..c.length() {
             assert!((c_data[i] - correct[i]).abs() < 0.001);
@@ -103,7 +110,7 @@ mod tests {
 
     #[test]
     fn mul_scalar_2d() {
-        let a = delta::arange(1., 11., 1.0);
+        let a = delta::arange(1., 11., 1.0, delta::cpu);
         let a = a.reshape(&[2, 5]);
         let b = 5 as i32;
         let c = a * b;
@@ -115,7 +122,7 @@ mod tests {
 
     #[test]
     fn mul_scalar_3d() {
-        let a = delta::arange(1., 13., 1.0);
+        let a = delta::arange(1., 13., 1.0, delta::cpu);
         let a = a.reshape(&[2, 2, 3]);
         let b: i32 = 5;
         let c = a * b;
@@ -127,31 +134,31 @@ mod tests {
 
     #[test]
     fn mul_3d_and_1d() {
-        let a = delta::arange(1., 9., 1.0).reshape(&[2, 2, 2]);
-        let b = delta::tensor(&[-2., 2.0], &[2]);
+        let a = delta::arange(1., 9., 1.0, delta::cpu).reshape(&[2, 2, 2]);
+        let b = delta::tensor(&[-2., 2.0], &[2], delta::cpu);
         let c = a * b;
         assert_eq!(c.storage(), vec![-2., 4., -6., 8., -10., 12., -14., 16.0]);
     }
 
     #[test]
     fn mul_3d_and_2d() {
-        let a = delta::arange(1., 9., 1.).reshape(&[2, 2, 2]);
-        let b = delta::tensor(&[-2., 3., 1., 4.], &[2, 2]);
+        let a = delta::arange(1., 9., 1., delta::cpu).reshape(&[2, 2, 2]);
+        let b = delta::tensor(&[-2., 3., 1., 4.], &[2, 2], delta::cpu);
         let c = a * b;
         assert_eq!(c.storage(), vec![-2., 6., 3., 16., -10., 18., 7., 32.]);
     }
 
     #[test]
     fn mul_1d_and_1d() {
-        let a = delta::tensor(&[10., 20., 30., 40., 50., 60.], &[6]);
-        let b = delta::arange(1., 7., 1.);
+        let a = delta::tensor(&[10., 20., 30., 40., 50., 60.], &[6], delta::cpu);
+        let b = delta::arange(1., 7., 1., delta::cpu);
         let c = a * b;
         assert_eq!(c.storage(), vec![10., 40., 90., 160., 250., 360.]);
     }
 
     #[test]
     fn div_scalar_2d() {
-        let a = delta::arange(1., 61., 10.);
+        let a = delta::arange(1., 61., 10., delta::cpu);
         let a = a.reshape(&[2, 3]);
         let b: i32 = 5;
         let c = a / b;
@@ -160,7 +167,7 @@ mod tests {
 
     #[test]
     fn div_scalar_3d() {
-        let a = delta::arange(1., 13., 1.);
+        let a = delta::arange(1., 13., 1., delta::cpu);
         let a = a.reshape(&[2, 2, 3]);
         let b: i32 = 5;
         let c = a / b;
@@ -172,8 +179,8 @@ mod tests {
 
     #[test]
     fn div_3d_and_1d() {
-        let a = delta::arange(1., 9., 1.).reshape(&[2, 2, 2]);
-        let b = delta::tensor(&[-2., 2.], &[2]);
+        let a = delta::arange(1., 9., 1., delta::cpu).reshape(&[2, 2, 2]);
+        let b = delta::tensor(&[-2., 2.], &[2], delta::cpu);
         let c = a / b;
         assert_eq!(
             c.storage(),
@@ -183,8 +190,8 @@ mod tests {
 
     #[test]
     fn div_3d_and_2d() {
-        let a = delta::arange(1., 9., 1.).reshape(&[2, 2, 2]);
-        let b = delta::tensor(&[-2., 3., 10., 4.], &[2, 2]);
+        let a = delta::arange(1., 9., 1., delta::cpu).reshape(&[2, 2, 2]);
+        let b = delta::tensor(&[-2., 3., 10., 4.], &[2, 2], delta::cpu);
         let c = a / b;
         assert_eq!(
             c.storage()
@@ -197,15 +204,15 @@ mod tests {
 
     #[test]
     fn div_1d_and_1d() {
-        let a = delta::tensor(&[10., 20., 30., 40., 50., 60.], &[6]);
-        let b = delta::arange(1., 7., 1.);
+        let a = delta::tensor(&[10., 20., 30., 40., 50., 60.], &[6], delta::cpu);
+        let b = delta::arange(1., 7., 1., delta::cpu);
         let c = a / b;
         assert_eq!(c.storage(), vec![10., 10., 10., 10., 10., 10.]);
     }
 
     #[test]
     fn add_scalar_3d() {
-        let a = delta::arange(1., 9., 1.0).reshape(&[2, 2, 2]);
+        let a = delta::arange(1., 9., 1.0, delta::cpu).reshape(&[2, 2, 2]);
         let b: f32 = 2.0;
         let c = a + b;
         assert_eq!(c.storage(), vec![3., 4., 5., 6., 7., 8., 9., 10.0]);
@@ -213,8 +220,8 @@ mod tests {
 
     #[test]
     fn add_1d_and_1d() {
-        let a = delta::arange(0., 11., 1.);
-        let b = delta::arange(0., 11., 1.);
+        let a = delta::arange(0., 11., 1., delta::cpu);
+        let b = delta::arange(0., 11., 1., delta::cpu);
         let c = a + b;
         assert_eq!(
             c.storage(),
@@ -224,23 +231,23 @@ mod tests {
 
     #[test]
     fn add_3d_and_3d() {
-        let a = delta::arange(1., 9., 1.0).reshape(&[2, 2, 2]);
-        let b = delta::arange(8., 0., -1.0).reshape(&[2, 2, 2]);
+        let a = delta::arange(1., 9., 1.0, delta::cpu).reshape(&[2, 2, 2]);
+        let b = delta::arange(8., 0., -1.0, delta::cpu).reshape(&[2, 2, 2]);
         let c = a + b;
         assert_eq!(c.storage(), vec![9., 9., 9., 9., 9., 9., 9., 9.]);
     }
 
     #[test]
     fn add_3d_and_2d() {
-        let a = delta::arange(1., 9., 1.0).reshape(&[2, 2, 2]);
-        let b = delta::tensor(&[-2., 3., 10., 4.0], &[2, 2]);
+        let a = delta::arange(1., 9., 1.0, delta::cpu).reshape(&[2, 2, 2]);
+        let b = delta::tensor(&[-2., 3., 10., 4.0], &[2, 2], delta::cpu);
         let c = a + b;
         assert_eq!(c.storage(), vec![-1., 5., 13., 8., 3., 9., 17., 12.]);
     }
 
     #[test]
     fn sub_scalar_3d() {
-        let a = delta::arange(1., 9., 1.).reshape(&[2, 2, 2]);
+        let a = delta::arange(1., 9., 1., delta::cpu).reshape(&[2, 2, 2]);
         let b: f32 = 2.;
         let c = a - b;
         assert_eq!(c.storage(), vec![-1., 0., 1., 2., 3., 4., 5., 6.]);
@@ -248,24 +255,24 @@ mod tests {
 
     #[test]
     fn sub_3d_and_3d() {
-        let a = delta::arange(1., 9., 1.0).reshape(&[2, 2, 2]);
-        let b = delta::arange(8., 0., -1.0).reshape(&[2, 2, 2]);
+        let a = delta::arange(1., 9., 1.0, delta::cpu).reshape(&[2, 2, 2]);
+        let b = delta::arange(8., 0., -1.0, delta::cpu).reshape(&[2, 2, 2]);
         let c = a - b;
         assert_eq!(c.storage(), vec![-7., -5., -3., -1., 1., 3., 5., 7.]);
     }
 
     #[test]
     fn sub_3d_and_2d() {
-        let a = delta::arange(1., 9., 1.0).reshape(&[2, 2, 2]);
-        let b = delta::tensor(&[-2., 3., 10., 4.0], &[2, 2]);
+        let a = delta::arange(1., 9., 1.0, delta::cpu).reshape(&[2, 2, 2]);
+        let b = delta::tensor(&[-2., 3., 10., 4.0], &[2, 2], delta::cpu);
         let c = a - b;
         assert_eq!(c.storage(), vec![3., -1., -7., 0., 7., 3., -3., 4.]);
     }
 
     #[test]
     fn sub_1d_and_1d() {
-        let a = delta::tensor(&[10., 20., 30., 40., 50., 60.], &[6]);
-        let b = delta::arange(1., 7., 1.);
+        let a = delta::tensor(&[10., 20., 30., 40., 50., 60.], &[6], delta::cpu);
+        let b = delta::arange(1., 7., 1., delta::cpu);
         let c = a - b;
         assert_eq!(c.storage(), vec![9., 18., 27., 36., 45., 54.]);
     }

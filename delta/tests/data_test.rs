@@ -10,12 +10,12 @@ mod tests {
         fn new() -> Self {
             Self {
                 data: vec![
-                    (delta::tensor(&[0.0], &[1]), delta::tensor(&[0.0], &[1])),
-                    (delta::tensor(&[1.0], &[1]), delta::tensor(&[2.0], &[1])),
-                    (delta::tensor(&[2.0], &[1]), delta::tensor(&[4.0], &[1])),
-                    (delta::tensor(&[3.0], &[1]), delta::tensor(&[6.0], &[1])),
-                    (delta::tensor(&[4.0], &[1]), delta::tensor(&[8.0], &[1])),
-                    (delta::tensor(&[5.0], &[1]), delta::tensor(&[10.0], &[1])),
+                    (delta::tensor(&[0.0], &[1], delta::cpu), delta::tensor(&[0.0], &[1], delta::cpu)),
+                    (delta::tensor(&[1.0], &[1], delta::cpu), delta::tensor(&[2.0], &[1], delta::cpu)),
+                    (delta::tensor(&[2.0], &[1], delta::cpu), delta::tensor(&[4.0], &[1], delta::cpu)),
+                    (delta::tensor(&[3.0], &[1], delta::cpu), delta::tensor(&[6.0], &[1], delta::cpu)),
+                    (delta::tensor(&[4.0], &[1], delta::cpu), delta::tensor(&[8.0], &[1], delta::cpu)),
+                    (delta::tensor(&[5.0], &[1], delta::cpu), delta::tensor(&[10.0], &[1], delta::cpu)),
                 ],
             }
         }

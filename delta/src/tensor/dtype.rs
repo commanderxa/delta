@@ -3,7 +3,7 @@ use crate::DEFAULT_DTYPE;
 #[allow(non_camel_case_types)]
 pub type f8 = float8::F8E4M3;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DType {
     Float8,
     Float16,
@@ -33,6 +33,19 @@ impl DType {
         }
     }
 
+    pub fn rank(&self) -> u8 {
+        if matches!(self, DType::Bool) {
+            1
+        } else if matches!(
+            self,
+            DType::Int8 | DType::Int16 | DType::Int32 | DType::Int64
+        ) {
+            2
+        } else {
+            3
+        }
+    }
+
     pub fn is_float(&self) -> bool {
         matches!(
             self,
@@ -45,6 +58,10 @@ impl DType {
             self,
             DType::Int8 | DType::Int16 | DType::Int32 | DType::Int64
         )
+    }
+
+    pub fn is_bool(&self) -> bool {
+        matches!(self, DType::Bool)
     }
 }
 
@@ -68,7 +85,6 @@ pub const int32: DType = DType::Int32;
 pub const int64: DType = DType::Int64;
 #[allow(non_upper_case_globals)]
 pub const bool: DType = DType::Bool;
-
 
 pub fn get_default_dtype() -> DType {
     *DEFAULT_DTYPE.read().unwrap()

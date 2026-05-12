@@ -14,37 +14,37 @@ fn main() {
     let optim = SGD::new(mlp.parameters(), 3e-2);
 
     let data = vec![
-        delta::tensor(&[1.], &[1, 1]),
-        delta::tensor(&[2.], &[1, 1]),
-        delta::tensor(&[3.], &[1, 1]),
-        delta::tensor(&[4.], &[1, 1]),
-        delta::tensor(&[5.], &[1, 1]),
-        delta::tensor(&[6.], &[1, 1]),
-        delta::tensor(&[7.], &[1, 1]),
-        delta::tensor(&[8.], &[1, 1]),
-        delta::tensor(&[9.], &[1, 1]),
-        delta::tensor(&[10.], &[1, 1]),
+        delta::tensor!([1.]),
+        delta::tensor!([2.]),
+        delta::tensor!([3.]),
+        delta::tensor!([4.]),
+        delta::tensor!([5.]),
+        delta::tensor!([6.]),
+        delta::tensor!([7.]),
+        delta::tensor!([8.]),
+        delta::tensor!([9.]),
+        delta::tensor!([10.]),
     ];
     let targets = vec![
-        delta::tensor(&[2. * 1.], &[1, 1]),
-        delta::tensor(&[2. * 2.], &[1, 1]),
-        delta::tensor(&[2. * 3.], &[1, 1]),
-        delta::tensor(&[2. * 4.], &[1, 1]),
-        delta::tensor(&[2. * 5.], &[1, 1]),
-        delta::tensor(&[2. * 6.], &[1, 1]),
-        delta::tensor(&[2. * 7.], &[1, 1]),
-        delta::tensor(&[2. * 8.], &[1, 1]),
-        delta::tensor(&[2. * 9.], &[1, 1]),
-        delta::tensor(&[2. * 10.], &[1, 1]),
+        delta::tensor!([1.]) * 2,
+        delta::tensor!([2.]) * 2,
+        delta::tensor!([3.]) * 2,
+        delta::tensor!([4.]) * 2,
+        delta::tensor!([5.]) * 2,
+        delta::tensor!([6.]) * 2,
+        delta::tensor!([7.]) * 2,
+        delta::tensor!([8.]) * 2,
+        delta::tensor!([9.]) * 2,
+        delta::tensor!([10.]) * 2,
     ];
 
     let test_data = vec![
-        delta::tensor(&[11.], &[1, 1]),
-        delta::tensor(&[-2.], &[1, 1]),
+        delta::tensor!([11.]),
+        delta::tensor!([-2.]),
     ];
     let test_targets = vec![
-        delta::tensor(&[22.], &[1, 1]),
-        delta::tensor(&[-4.], &[1, 1]),
+        delta::tensor!([22.]),
+        delta::tensor!([-4.]),
     ];
 
     for epoch in 1..=epochs {

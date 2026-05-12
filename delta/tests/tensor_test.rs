@@ -24,14 +24,14 @@ mod tests {
         let a1 = delta::zeros_like(&a);
         assert_eq!(0., a1.data().iter().sum(), "zeros_like produces not zeros");
         assert_eq!(
-            a.shape, a1.shape,
+            a.shape(), a1.shape(),
             "zeros_like produce wrong shape of a tensor"
         );
         let b = delta::randn(&[4, 10, 8]);
         let b1 = delta::zeros_like(&b);
         assert_eq!(0., b1.data().iter().sum(), "zeros_like produces not zeros");
         assert_eq!(
-            b.shape, b1.shape,
+            b.shape(), b1.shape(),
             "zeros_like produce wrong shape of a tensor"
         );
     }
@@ -46,7 +46,7 @@ mod tests {
             "ones_like produces not ones"
         );
         assert_eq!(
-            a.shape, a1.shape,
+            a.shape(), a1.shape(),
             "ones_like produce wrong shape of a tensor"
         );
         let b = delta::randn(&[4, 10, 8]);
@@ -57,7 +57,7 @@ mod tests {
             "ones_like produces not ones"
         );
         assert_eq!(
-            b.shape, b1.shape,
+            b.shape(), b1.shape(),
             "ones_like produce wrong shape of a tensor"
         );
     }
@@ -67,7 +67,7 @@ mod tests {
     fn t_2d() {
         let a = delta::tensor(&[0., 1., 2., 3., 4., 5.], &[2, 3]);
         let t = delta::tensor(&[0., 3., 1., 4., 2., 5.], &[3, 2]);
-        assert_eq!(a.t().shape, t.shape, "Shapes are wrong");
+        assert_eq!(a.t().shape(), t.shape(), "Shapes are wrong");
         assert_eq!(a.t().data(), t.data(), "Data is wrong");
     }
 
@@ -75,7 +75,7 @@ mod tests {
     /// New tensor of ordered numbers
     fn arange() {
         let a = delta::arange(0., 6., 1.);
-        assert_eq!(a.shape, vec![a.length()], "Shape is wrong");
+        assert_eq!(a.shape(), vec![a.length()], "Shape is wrong");
         assert_eq!(a.data(), vec![0., 1., 2., 3., 4., 5.], "Data is wrong");
     }
 
@@ -83,28 +83,28 @@ mod tests {
     /// Reshape the tensor
     fn reshape() {
         let a = delta::tensor(&[0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11.], &[3, 4]);
-        assert_eq!(a.shape, vec![3, 4]);
+        assert_eq!(a.shape(), vec![3, 4]);
         let mut _a = a.reshape(&[1, 12]);
-        assert_eq!(_a.shape, vec![1, 12]);
+        assert_eq!(_a.shape(), vec![1, 12]);
         _a = a.reshape(&[12, 1]);
-        assert_eq!(_a.shape, vec![12, 1]);
+        assert_eq!(_a.shape(), vec![12, 1]);
         _a = a.reshape(&[2, 6]);
-        assert_eq!(_a.shape, vec![2, 6]);
+        assert_eq!(_a.shape(), vec![2, 6]);
         _a = a.reshape(&[1, 3, 4]);
-        assert_eq!(_a.shape, vec![1, 3, 4]);
+        assert_eq!(_a.shape(), vec![1, 3, 4]);
         _a = a.reshape(&[2, 2, 3]);
-        assert_eq!(_a.shape, vec![2, 2, 3]);
-        assert_eq!(a.shape, vec![3, 4]);
+        assert_eq!(_a.shape(), vec![2, 2, 3]);
+        assert_eq!(a.shape(), vec![3, 4]);
 
         let a = delta::arange(0., 9., 1.).view(&[3, 1, 3]);
-        assert_eq!(a.stride, vec![3, 3, 1]);
-        assert_eq!(a.shape, vec![3, 1, 3]);
+        assert_eq!(a.stride(), vec![3, 3, 1]);
+        assert_eq!(a.shape(), vec![3, 1, 3]);
         let a = a.expand(&[3, 2, 3]);
-        assert_eq!(a.stride, vec![3, 0, 1]);
-        assert_eq!(a.shape, vec![3, 2, 3]);
+        assert_eq!(a.stride(), vec![3, 0, 1]);
+        assert_eq!(a.shape(), vec![3, 2, 3]);
         let a = a.reshape(&[2, 3, 3]);
-        assert_eq!(a.stride, vec![9, 3, 1]);
-        assert_eq!(a.shape, vec![2, 3, 3]);
+        assert_eq!(a.stride(), vec![9, 3, 1]);
+        assert_eq!(a.shape(), vec![2, 3, 3]);
         assert_eq!(
             a.storage(),
             vec![
@@ -126,15 +126,15 @@ mod tests {
     fn view() {
         let a = delta::tensor(&[0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11.], &[3, 4]);
         let b = a.view(&[1, 12]);
-        assert_eq!(b.shape, vec![1, 12]);
+        assert_eq!(b.shape(), vec![1, 12]);
         let c = a.view(&[12, 1]);
-        assert_eq!(c.shape, vec![12, 1]);
+        assert_eq!(c.shape(), vec![12, 1]);
         let d = a.view(&[2, 6]);
-        assert_eq!(d.shape, vec![2, 6]);
+        assert_eq!(d.shape(), vec![2, 6]);
         let e = a.view(&[1, 3, 4]);
-        assert_eq!(e.shape, vec![1, 3, 4]);
+        assert_eq!(e.shape(), vec![1, 3, 4]);
         let f = a.view(&[2, 2, 3]);
-        assert_eq!(f.shape, vec![2, 2, 3]);
+        assert_eq!(f.shape(), vec![2, 2, 3]);
     }
 
     #[test]
@@ -188,28 +188,28 @@ mod tests {
         let a = randn![2, 3];
         let b = delta::randn(&[2, 3]);
         assert_eq!(a.length(), b.length());
-        assert_eq!(a.shape, b.shape);
+        assert_eq!(a.shape(), b.shape());
     }
 
     #[test]
     fn stride() {
         let a = delta::ones(&[1, 1, 3, 1, 3, 3]);
-        assert_eq!(a.stride, vec![27, 27, 9, 9, 3, 1]);
+        assert_eq!(a.stride(), vec![27, 27, 9, 9, 3, 1]);
 
         let a = a.expand(&[2, 2, 3, 3, 3, 3]);
-        assert_eq!(a.stride, vec![0, 0, 9, 0, 3, 1]);
+        assert_eq!(a.stride(), vec![0, 0, 9, 0, 3, 1]);
 
         let a = delta::ones(&[4, 1]);
-        assert_eq!(a.stride, vec![1, 1]);
+        assert_eq!(a.stride(), vec![1, 1]);
 
         let a = a.expand(&[4, 5]);
-        assert_eq!(a.stride, vec![1, 0]);
+        assert_eq!(a.stride(), vec![1, 0]);
 
         let a = delta::ones(&[4, 1, 1]);
-        assert_eq!(a.stride, vec![1, 1, 1]);
+        assert_eq!(a.stride(), vec![1, 1, 1]);
 
         let a = a.expand(&[4, 3, 5]);
-        assert_eq!(a.stride, vec![1, 0, 0]);
+        assert_eq!(a.stride(), vec![1, 0, 0]);
     }
 
     #[test]
@@ -223,37 +223,37 @@ mod tests {
     fn expand() {
         let a = delta::ones(&[1, 1, 3, 1, 3, 3]);
         let b = a.expand(&[2, 2, 3, 3, 3, 3]);
-        assert_eq!(a.shape, vec![1, 1, 3, 1, 3, 3]);
-        assert_eq!(b.shape, vec![2, 2, 3, 3, 3, 3]);
-        assert_eq!(a.stride, vec![27, 27, 9, 9, 3, 1]);
-        assert_eq!(b.stride, vec![0, 0, 9, 0, 3, 1]);
+        assert_eq!(a.shape(), vec![1, 1, 3, 1, 3, 3]);
+        assert_eq!(b.shape(), vec![2, 2, 3, 3, 3, 3]);
+        assert_eq!(a.stride(), vec![27, 27, 9, 9, 3, 1]);
+        assert_eq!(b.stride(), vec![0, 0, 9, 0, 3, 1]);
     }
 
     #[test]
     fn unsqueeze() {
         let a = randn!(2, 3, 4);
         let b = a.unsqueeze(1);
-        assert_eq!(a.shape, vec![2, 3, 4]);
-        assert_eq!(b.stride, vec![12, 4, 4, 1]);
-        assert_eq!(b.shape, vec![2, 1, 3, 4]);
+        assert_eq!(a.shape(), vec![2, 3, 4]);
+        assert_eq!(b.stride(), vec![12, 4, 4, 1]);
+        assert_eq!(b.shape(), vec![2, 1, 3, 4]);
         let c = b.unsqueeze(4);
-        assert_eq!(a.shape, vec![2, 3, 4]);
-        assert_eq!(b.shape, vec![2, 1, 3, 4]);
-        assert_eq!(c.shape, vec![2, 1, 3, 4, 1]);
+        assert_eq!(a.shape(), vec![2, 3, 4]);
+        assert_eq!(b.shape(), vec![2, 1, 3, 4]);
+        assert_eq!(c.shape(), vec![2, 1, 3, 4, 1]);
         let d = a.unsqueeze(0);
-        assert_eq!(d.shape, vec![1, 2, 3, 4]);
+        assert_eq!(d.shape(), vec![1, 2, 3, 4]);
     }
 
     #[test]
     fn squeeze() {
         let a = randn!(2, 1, 3, 4, 1);
         let b = a.squeeze(&[]);
-        assert_eq!(a.shape, vec![2, 1, 3, 4, 1]);
-        assert_eq!(b.shape, vec![2, 3, 4]);
+        assert_eq!(a.shape(), vec![2, 1, 3, 4, 1]);
+        assert_eq!(b.shape(), vec![2, 3, 4]);
         let c = a.squeeze(&[1, 2]);
-        assert_eq!(a.shape, vec![2, 1, 3, 4, 1]);
-        assert_eq!(b.shape, vec![2, 3, 4]);
-        assert_eq!(c.shape, vec![2, 3, 4, 1]);
+        assert_eq!(a.shape(), vec![2, 1, 3, 4, 1]);
+        assert_eq!(b.shape(), vec![2, 3, 4]);
+        assert_eq!(c.shape(), vec![2, 3, 4, 1]);
     }
 
     #[test]
@@ -309,20 +309,20 @@ mod tests {
         let a = delta::tensor(&[1., 2., 3.], &[3]);
         let b = delta::tensor!([1, 2, 3]);
         assert_eq!(a.data(), b.data());
-        assert_eq!(a.shape, b.shape);
-        assert_eq!(a.stride, b.stride);
+        assert_eq!(a.shape(), b.shape());
+        assert_eq!(a.stride(), b.stride());
 
         let a = delta::arange(0., 9., 1.).reshape(&[3, 3]);
         let b = delta::tensor!([[0, 1, 2], [3, 4, 5], [6, 7, 8]]);
         assert_eq!(a.data(), b.data());
-        assert_eq!(a.shape, b.shape);
-        assert_eq!(a.stride, b.stride);
+        assert_eq!(a.shape(), b.shape());
+        assert_eq!(a.stride(), b.stride());
 
         let a = delta::arange(0., 9., 1.).reshape(&[1, 3, 3]);
         let b = delta::tensor!([[[0, 1, 2], [3, 4, 5], [6, 7, 8]]]);
         assert_eq!(a.data(), b.data());
-        assert_eq!(a.shape, b.shape);
-        assert_eq!(a.stride, b.stride);
+        assert_eq!(a.shape(), b.shape());
+        assert_eq!(a.stride(), b.stride());
     }
 
     #[test]

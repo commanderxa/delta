@@ -6,7 +6,6 @@ use crate::{
     ivalue::IValue,
     linalg,
     nn::{Module, Parameter},
-    tensor::repr::FloatTensorRepr,
 };
 
 /// # `Linear` Layer
@@ -27,16 +26,14 @@ pub struct Linear {
 }
 
 impl Linear {
-    pub fn new<T: FloatTensorRepr>(
-        mut in_features: usize,
-        out_features: usize,
-        bias: bool,
-    ) -> Self {
+    pub fn new(mut in_features: usize, out_features: usize, bias: bool) -> Self {
         if bias {
             in_features += 1;
         }
-        let _weights = Parameter(crate::randn::<T>(&[in_features, out_features], Device::CPU));
-        Self { weights: _weights }
+        let _weights = crate::randn(&[in_features, out_features], Device::CPU);
+        Self {
+            weights: Parameter(_weights),
+        }
     }
 }
 
@@ -59,10 +56,7 @@ impl Module for Linear {
         let mut ones_shape = x.shape();
         let _ = ones_shape.pop();
         ones_shape.push(1);
-        let x = Tensor::cat(
-            &[x, crate::ones(&ones_shape, self.weights.device())],
-            1,
-        );
+        let x = Tensor::cat(&[x, crate::ones(&ones_shape, self.weights.device())], 1);
         let x = linalg::matmul(x, weights.0);
         IValue::Tensor(x)
     }
