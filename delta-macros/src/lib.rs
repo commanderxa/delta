@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, Fields, Type};
+use syn::{Data, DeriveInput, Fields, Type, parse_macro_input};
 
 /// Derive macro for the `Module` trait.
 ///
@@ -56,7 +56,7 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
                     "Module derive does not support tuple structs",
                 )
                 .to_compile_error()
-                .into()
+                .into();
             }
             Fields::Unit => {
                 // Unit struct — no parameters or submodules
@@ -66,7 +66,7 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         _ => {
             return syn::Error::new_spanned(struct_name, "Module can only be derived for structs")
                 .to_compile_error()
-                .into()
+                .into();
         }
     };
 
@@ -77,10 +77,7 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         let field_name = field.ident.as_ref().expect("named field");
 
         // Check for #[module] attribute → submodule
-        let is_submodule = field
-            .attrs
-            .iter()
-            .any(|a| a.path().is_ident("module"));
+        let is_submodule = field.attrs.iter().any(|a| a.path().is_ident("module"));
 
         if is_submodule {
             submodule_fields.push(field_name.clone());
@@ -90,7 +87,12 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         }
     }
 
-    expand(struct_name, &struct_name_str, param_fields, submodule_fields)
+    expand(
+        struct_name,
+        &struct_name_str,
+        param_fields,
+        submodule_fields,
+    )
 }
 
 // ---------------------------------------------------------------------------
