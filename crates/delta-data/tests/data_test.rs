@@ -11,28 +11,28 @@ mod tests {
             Self {
                 data: vec![
                     (
-                        delta::tensor(&[0.0], &[1], delta::cpu).cast(delta::float32),
-                        delta::tensor(&[0.0], &[1], delta::cpu).cast(delta::float32),
+                        delta_tensor::tensor(&[0.0], &[1], delta_tensor::cpu).cast(delta_tensor::float32),
+                        delta_tensor::tensor(&[0.0], &[1], delta_tensor::cpu).cast(delta_tensor::float32),
                     ),
                     (
-                        delta::tensor(&[1.0], &[1], delta::cpu).cast(delta::float32),
-                        delta::tensor(&[2.0], &[1], delta::cpu).cast(delta::float32),
+                        delta_tensor::tensor(&[1.0], &[1], delta_tensor::cpu).cast(delta_tensor::float32),
+                        delta_tensor::tensor(&[2.0], &[1], delta_tensor::cpu).cast(delta_tensor::float32),
                     ),
                     (
-                        delta::tensor(&[2.0], &[1], delta::cpu).cast(delta::float32),
-                        delta::tensor(&[4.0], &[1], delta::cpu).cast(delta::float32),
+                        delta_tensor::tensor(&[2.0], &[1], delta_tensor::cpu).cast(delta_tensor::float32),
+                        delta_tensor::tensor(&[4.0], &[1], delta_tensor::cpu).cast(delta_tensor::float32),
                     ),
                     (
-                        delta::tensor(&[3.0], &[1], delta::cpu).cast(delta::float32),
-                        delta::tensor(&[6.0], &[1], delta::cpu).cast(delta::float32),
+                        delta_tensor::tensor(&[3.0], &[1], delta_tensor::cpu).cast(delta_tensor::float32),
+                        delta_tensor::tensor(&[6.0], &[1], delta_tensor::cpu).cast(delta_tensor::float32),
                     ),
                     (
-                        delta::tensor(&[4.0], &[1], delta::cpu).cast(delta::float32),
-                        delta::tensor(&[8.0], &[1], delta::cpu).cast(delta::float32),
+                        delta_tensor::tensor(&[4.0], &[1], delta_tensor::cpu).cast(delta_tensor::float32),
+                        delta_tensor::tensor(&[8.0], &[1], delta_tensor::cpu).cast(delta_tensor::float32),
                     ),
                     (
-                        delta::tensor(&[5.0], &[1], delta::cpu).cast(delta::float32),
-                        delta::tensor(&[10.0], &[1], delta::cpu).cast(delta::float32),
+                        delta_tensor::tensor(&[5.0], &[1], delta_tensor::cpu).cast(delta_tensor::float32),
+                        delta_tensor::tensor(&[10.0], &[1], delta_tensor::cpu).cast(delta_tensor::float32),
                     ),
                 ],
             }

@@ -8,7 +8,20 @@ readme = "README.md"
 repository.workspace = true
 license-file.workspace = true
 
+[features]
+default = []
+cuda = ["delta-tensor/cuda"]
+
 [dependencies]
+delta-tensor = { workspace = true }
+delta-nn = { workspace = true }
+delta-optim = { workspace = true }
+delta-data = { workspace = true }
 
 [lints]
 workspace = true
+
+[lib]
+name = "delta"
+path = "src/lib.rs"
+crate-type = ["rlib"]

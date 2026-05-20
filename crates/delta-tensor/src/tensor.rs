@@ -823,13 +823,13 @@ impl Tensor {
             Device::CPU => Tensor {
                 inner: Rc::new(RefCell::new(self.inner.borrow().cuda())),
             },
-            Device::CUDA => self.to_owned(),
+            Device::CUDA => self.clone(),
         }
     }
 
     pub fn cpu(&self) -> Tensor {
         match self.device() {
-            Device::CPU => self.to_owned(),
+            Device::CPU => self.clone(),
             #[cfg(feature = "cuda")]
             Device::CUDA => Tensor {
                 inner: Rc::new(RefCell::new(self.inner.borrow().cpu())),
@@ -1423,8 +1423,11 @@ impl Display for Tensor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let data = String::new();
         let shape = self.shape();
-        let data = self.tensor_to_str(data, 0, 0..shape.iter().product());
-        let res = format!("Tensor({data})");
+        let _t = self.cpu();
+        let data = _t.tensor_to_str(data, 0, 0..shape.iter().product());
+        let device = self.device();
+        let dtype = self.dtype();
+        let res = format!("tensor({data}, device={device}, dtype={dtype})");
         write!(f, "{res}")
     }
 }

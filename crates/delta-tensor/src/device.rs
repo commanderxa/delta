@@ -12,9 +12,9 @@ pub enum Device {
 impl std::fmt::Display for Device {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Device::CPU => write!(f, "CPU"),
+            Device::CPU => write!(f, "'cpu'"),
             #[cfg(feature = "cuda")]
-            Device::CUDA => write!(f, "CUDA"),
+            Device::CUDA => write!(f, "'cuda'"),
         }
     }
 }

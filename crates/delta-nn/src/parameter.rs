@@ -1,4 +1,4 @@
-use delta::Tensor;
+use delta_tensor::Tensor;
 
 #[derive(Clone, Debug)]
 pub struct Parameter(pub Tensor);

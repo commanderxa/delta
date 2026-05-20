@@ -24,8 +24,12 @@ impl PyParameter {
     }
 
     // Delegate tensor methods so it behaves like a Tensor in Python
-    fn grad(&self) -> Option<Vec<f64>> {
-        self.inner.0.grad()
+    fn grad(&self) -> Option<PyTensor> {
+        if let Some(t) = self.inner.grad() {
+            Some(PyTensor { inner: t })
+        } else {
+            None
+        }
     }
 
     fn item(&self) -> Vec<f64> {
@@ -34,7 +38,7 @@ impl PyParameter {
 
     #[getter]
     fn shape(&self) -> Vec<usize> {
-        self.inner.0.shape.clone()
+        self.inner.0.shape().clone()
     }
 
     #[getter]

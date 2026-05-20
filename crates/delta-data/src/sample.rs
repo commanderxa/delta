@@ -1,4 +1,4 @@
-use delta::Tensor;
+use delta_tensor::Tensor;
 
 /// X is the input data
 pub type X = Tensor;

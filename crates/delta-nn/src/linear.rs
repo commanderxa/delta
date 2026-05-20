@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use delta::{Tensor, device::Device, ivalue::IValue, linalg};
+use delta_tensor::{Tensor, device::Device, ivalue::IValue, linalg};
 
 use crate::{Module, Parameter};
 
@@ -26,7 +26,7 @@ impl Linear {
         if bias {
             in_features += 1;
         }
-        let _weights = delta::randn(&[in_features, out_features], Device::CPU);
+        let _weights = delta_tensor::randn(&[in_features, out_features], Device::CPU);
         Self {
             weights: Parameter(_weights),
         }
@@ -54,7 +54,7 @@ impl Module for Linear {
         let _ = ones_shape.pop();
         ones_shape.push(1);
         let x = Tensor::cat(
-            &[x, delta::ones(&ones_shape, dtype, self.weights.device())],
+            &[x, delta_tensor::ones(&ones_shape, dtype, self.weights.device())],
             1,
         );
         let x = linalg::matmul(x, weights.0);

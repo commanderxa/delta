@@ -196,7 +196,7 @@ impl TensorImpl {
 
     pub fn cpu(&self) -> Self {
         match self.device() {
-            Device::CPU => self.to_owned(),
+            Device::CPU => self.clone(),
             #[cfg(feature = "cuda")]
             Device::CUDA => Self::from_storage(self.data.to_cpu(), &self.shape),
         }
@@ -206,7 +206,7 @@ impl TensorImpl {
     pub fn cuda(&self) -> Self {
         match self.device() {
             Device::CPU => Self::from_storage(self.data.to_cuda(), &self.shape),
-            Device::CUDA => self.to_owned(),
+            Device::CUDA => self.clone(),
         }
     }
 

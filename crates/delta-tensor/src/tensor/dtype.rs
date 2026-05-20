@@ -65,6 +65,23 @@ impl DType {
     }
 }
 
+impl std::fmt::Display for DType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DType::Float8 => write!(f, "delta.float8"),
+            DType::Float16 => write!(f, "delta.float16"),
+            DType::BFloat16 => write!(f, "delta.bfloat16"),
+            DType::Float32 => write!(f, "delta.float32"),
+            DType::Float64 => write!(f, "delta.float64"),
+            DType::Int8 => write!(f, "delta.int8"),
+            DType::Int16 => write!(f, "delta.int16"),
+            DType::Int32 => write!(f, "delta.int32"),
+            DType::Int64 => write!(f, "delta.int64"),
+            DType::Bool => write!(f, "delta.bool"),
+        }
+    }
+}
+
 #[allow(non_upper_case_globals)]
 pub const float8: DType = DType::Float8;
 #[allow(non_upper_case_globals)]

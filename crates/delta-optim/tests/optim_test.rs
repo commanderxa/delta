@@ -2,18 +2,18 @@
 mod tests {
     use std::collections::HashMap;
 
-    use delta::{ivalue, ivalue::IValue};
+    use delta_tensor::{ivalue, ivalue::IValue};
     use delta_nn::{Linear, MSELoss, Module, Parameter, functional as F};
     use delta_optim::{Optim, SGD};
 
     #[test]
     fn zero_grad() {
         let a = Parameter(
-            delta::tensor(&[1., 2., 3., 4., 5., 6.], &[2, 3], delta::cpu).cast(delta::float32),
+            delta_tensor::tensor(&[1., 2., 3., 4., 5., 6.], &[2, 3], delta_tensor::cpu).cast(delta_tensor::float32),
         );
-        let b = Parameter(delta::ones(&[2, 3], delta::float32, delta::cpu));
+        let b = Parameter(delta_tensor::ones(&[2, 3], delta_tensor::float32, delta_tensor::cpu));
         let optim = SGD::new(vec![a.clone(), b.clone()], 1e-3);
-        let c = delta::sum(&(a.0.clone() * b.0.clone()), None, false);
+        let c = delta_tensor::sum(&(a.0.clone() * b.0.clone()), None, false);
         c.backward();
         assert_ne!(a.grad().unwrap().data().iter().sum::<f32>(), 0.0);
         assert_ne!(b.grad().unwrap().data().iter().sum::<f32>(), 0.0);
@@ -29,7 +29,7 @@ mod tests {
         let optim = SGD::new(mlp.parameters(), 1e-1);
         optim.zero_grad();
 
-        let x = delta::randn(&[10, 4], delta::cpu);
+        let x = delta_tensor::randn(&[10, 4], delta_tensor::cpu);
         let criterion = MSELoss::default();
 
         let (args, kwargs) = ivalue![[x.clone()]];
@@ -37,7 +37,7 @@ mod tests {
         out = out.squeeze(&[]);
         let loss = criterion.measure(
             out.clone(),
-            delta::tensor(&[1., 0., 1., 0., 1., 0., 1., 1., 0., 1.], &[10], delta::cpu),
+            delta_tensor::tensor(&[1., 0., 1., 0., 1., 0., 1., 1., 0., 1.], &[10], delta_tensor::cpu),
         );
 
         loss.backward();

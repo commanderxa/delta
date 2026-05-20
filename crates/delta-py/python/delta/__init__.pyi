@@ -1,6 +1,37 @@
 # delta/_delta.pyi
 from __future__ import annotations
 from typing import Optional
+from enum import Enum
+
+class DType(Enum):
+    Float8: DType
+    Float16: DType
+    BFloat16: DType
+    Float32: DType
+    Float64: DType
+    Int8: DType
+    Int16: DType
+    Int32: DType
+    Int64: DType
+    Bool: DType
+
+float8: DType
+float16: DType
+bfloat16: DType
+float32: DType
+float64: DType
+int8: DType
+int16: DType
+int32: DType
+int64: DType
+bool: DType
+
+class Device(Enum):
+    CPU: Device
+    CUDA: Device
+
+cpu: Device
+cuda: Device
 
 class Tensor:
     shape: list[int]
@@ -58,6 +89,11 @@ class Tensor:
     # ── Device ────────────────────────────────────────────────────────────
     def cpu(self) -> Tensor: ...
     def cuda(self) -> Tensor: ...
+    def device(self) -> Device: ...
+
+    # ── Data Types ───────────────────────────────────────────────────────────
+    def cast(self) -> Tensor: ...
+    def dtype(self) -> DType: ...
 
     # ── Arithmetic operators ─────────────────────────────────────────────────
     def __add__(self, other: float | int | Tensor) -> Tensor: ...

@@ -4,7 +4,7 @@ pub mod sgd;
 // Short paths for algorithms
 pub use sgd::SGD;
 
-use delta::StorageRepr;
+use delta_tensor::StorageRepr;
 
 /// Behavior of optimizers
 pub trait Optim<T: StorageRepr> {

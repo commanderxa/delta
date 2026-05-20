@@ -4,7 +4,7 @@ MODE ?= dev
 
 pybindings:
 ifeq ($(MODE),release)
-	cd ./delta-py && maturin build --release
+	cd ./crates/delta-py && maturin build --out ../../target/wheels/ --release
 else
-	cd ./delta-py && maturin develop --uv
+	cd ./crates/delta-py && maturin develop --uv
 endif

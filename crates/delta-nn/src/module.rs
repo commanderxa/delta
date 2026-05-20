@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use delta::ivalue::IValue;
+use delta_tensor::ivalue::IValue;
 
 use crate::Parameter;
 

@@ -345,8 +345,8 @@ macro_rules! __tensor_flatten {
 #[macro_export]
 macro_rules! tensor {
     ($data:tt) => {{
-        use delta::Device;
-        delta::tensor!($data, Device::CPU)
+        use delta_tensor::Device;
+        delta_tensor::tensor!($data, Device::CPU)
     }};
     ($data:tt, $device:expr) => {{
         let shape = $crate::__tensor_shape!($data);
@@ -359,12 +359,12 @@ macro_rules! tensor {
 #[macro_export]
 macro_rules! randn {
     ($($element:expr),+) => {{
-        delta::randn!($($element),+; delta::cpu)
+        delta_tensor::randn!($($element),+; delta_tensor::cpu)
     }};
     ($($element:expr),+; $device:expr) => {{
         let mut shape: Vec<usize> = Vec::new();
         $(shape.push($element);)*
-        delta::randn(&shape, $device)
+        delta_tensor::randn(&shape, $device)
     }};
     ($($element:expr,)*) => {{
         $crate::tensor::randn![$($element),*]

@@ -7,7 +7,7 @@ use crate::nn::parameter::PyParameter;
 
 #[pyclass(name = "SGD", module = "delta.optim", unsendable)]
 pub struct PySGD {
-    pub(crate) inner: SGD,
+    pub(crate) inner: SGD<f64>,
 }
 
 #[pymethods]

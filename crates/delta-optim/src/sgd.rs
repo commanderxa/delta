@@ -1,4 +1,4 @@
-use delta::FloatTensorRepr;
+use delta_tensor::FloatTensorRepr;
 use delta_nn::Parameter;
 
 use super::Optim;

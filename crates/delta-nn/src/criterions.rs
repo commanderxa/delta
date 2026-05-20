@@ -1,7 +1,7 @@
 use half::{bf16, f16};
 use num_traits::AsPrimitive;
 
-use delta::{FloatTensorRepr, Tensor, TensorImpl, TensorRepr, f8, op::Op};
+use delta_tensor::{FloatTensorRepr, Tensor, TensorImpl, TensorRepr, f8, op::Op};
 
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub enum Reduction {
@@ -26,7 +26,7 @@ impl MSELoss {
         let t = (a - b).pow(2) * 0.5;
         let t_len = t.length();
         let inner = match dtype {
-            delta::float8 => {
+            delta_tensor::float8 => {
                 let a = t.data();
                 let mut s = f8::zero();
                 if let Some(reduction) = self.reduction {
@@ -37,7 +37,7 @@ impl MSELoss {
                 }
                 TensorImpl::from_op(vec![s], &[1], vec![t.clone()], Op::MSE(t_len), t.device())
             }
-            delta::float16 => {
+            delta_tensor::float16 => {
                 let a = t.data();
                 let mut s = f16::zero();
                 if let Some(reduction) = self.reduction {
@@ -48,7 +48,7 @@ impl MSELoss {
                 }
                 TensorImpl::from_op(vec![s], &[1], vec![t.clone()], Op::MSE(t_len), t.device())
             }
-            delta::bfloat16 => {
+            delta_tensor::bfloat16 => {
                 let a = t.data();
                 let mut s = bf16::zero();
                 if let Some(reduction) = self.reduction {
@@ -59,7 +59,7 @@ impl MSELoss {
                 }
                 TensorImpl::from_op(vec![s], &[1], vec![t.clone()], Op::MSE(t_len), t.device())
             }
-            delta::float32 => {
+            delta_tensor::float32 => {
                 let a = t.data();
                 let mut s = f32::zero();
                 if let Some(reduction) = self.reduction {
@@ -70,7 +70,7 @@ impl MSELoss {
                 }
                 TensorImpl::from_op(vec![s], &[1], vec![t.clone()], Op::MSE(t_len), t.device())
             }
-            delta::float64 => {
+            delta_tensor::float64 => {
                 let a = t.data();
                 let mut s = f64::zero();
                 if let Some(reduction) = self.reduction {
@@ -81,11 +81,11 @@ impl MSELoss {
                 }
                 TensorImpl::from_op(vec![s], &[1], vec![t.clone()], Op::MSE(t_len), t.device())
             }
-            delta::int8 => todo!(),
-            delta::int16 => todo!(),
-            delta::int32 => todo!(),
-            delta::int64 => todo!(),
-            delta::bool => todo!(),
+            delta_tensor::int8 => todo!(),
+            delta_tensor::int16 => todo!(),
+            delta_tensor::int32 => todo!(),
+            delta_tensor::int64 => todo!(),
+            delta_tensor::bool => todo!(),
         };
         Tensor::new(inner)
     }

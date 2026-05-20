@@ -20,6 +20,7 @@ license-file = "LICENSE"
 
 [workspace.dependencies]
 # internal
+delta = { path = "./crates/delta", default-features = false }               # main package
 delta-core = { path = "./crates/delta-core", default-features = false }
 delta-tensor = { path = "./crates/delta-tensor", default-features = false }
 delta-cpu = { path = "./crates/delta-cpu", default-features = false }

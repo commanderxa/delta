@@ -1,14 +1,40 @@
+pub mod device;
+pub mod dtype;
 pub mod init;
 
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyList, PyTuple};
 
-use delta::Tensor;
+use delta::{DType, Tensor};
+
+use crate::tensor::device::PyDevice;
+use crate::tensor::dtype::PyDType;
 
 pub fn register_submodule(_py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
     parent.add_class::<PyTensor>()?;
+    // module registration
     init::register_submodule(_py, parent)?;
+    device::register_submodule(_py, parent)?;
+    dtype::register_submodule(_py, parent)?;
+    // export from root
+    // device
+    parent.add("cpu", PyDevice::CPU)?;
+    #[cfg(feature = "cuda")]
+    parent.add("cuda", PyDevice::CUDA)?;
+    parent.add("Device", _py.get_type::<PyDevice>())?;
+    // data type
+    parent.add("float8", PyDType::Float8)?;
+    parent.add("float16", PyDType::Float16)?;
+    parent.add("bfloat16", PyDType::BFloat16)?;
+    parent.add("float32", PyDType::Float32)?;
+    parent.add("float64", PyDType::Float64)?;
+    parent.add("int8", PyDType::Int8)?;
+    parent.add("int16", PyDType::Int16)?;
+    parent.add("int32", PyDType::Int32)?;
+    parent.add("int64", PyDType::Int64)?;
+    parent.add("bool", PyDType::Bool)?;
+    parent.add("DType", _py.get_type::<PyDType>())?;
     Ok(())
 }
 
@@ -44,12 +70,27 @@ impl PyTensor {
 
     #[getter]
     fn shape(&self) -> Vec<usize> {
-        self.inner.shape.clone()
+        self.inner.shape().clone()
+    }
+
+    #[getter]
+    fn strides(&self) -> Vec<usize> {
+        self.inner.stride().clone()
+    }
+
+    #[getter]
+    fn dtype(&self) -> PyDType {
+        PyDType::from(self.inner.dtype())
+    }
+
+    #[getter]
+    fn device(&self) -> PyDevice {
+        PyDevice::from(self.inner.device())
     }
 
     #[getter]
     fn ndim(&self) -> usize {
-        self.inner.shape.len()
+        self.inner.shape().len()
     }
 
     #[getter]
@@ -57,17 +98,17 @@ impl PyTensor {
         self.inner.length()
     }
 
-    fn storage(&self) -> Vec<f64> {
-        self.inner.storage()
-    }
-
     fn data(&self) -> Vec<f64> {
         self.inner.data()
     }
 
     #[getter]
-    fn grad(&self) -> PyResult<Option<Vec<f64>>> {
-        Ok(self.inner.grad())
+    fn grad(&self) -> PyResult<Option<Self>> {
+        if let Some(t) = self.inner.grad() {
+            Ok(Some(Self { inner: t }))
+        } else {
+            Ok(None)
+        }
     }
 
     #[pyo3(signature = (*shape))]
@@ -193,6 +234,12 @@ impl PyTensor {
     fn cuda(&self) -> Self {
         Self {
             inner: self.inner.cuda(),
+        }
+    }
+
+    fn cast(&self, dtype: PyDType) -> Self {
+        Self {
+            inner: self.inner.clone().cast(DType::from(dtype)),
         }
     }
 

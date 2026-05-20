@@ -16,11 +16,11 @@ path = "src/lib.rs"
 crate-type = ["cdylib"]
 
 [features]
-cuda = ["delta-tensor/cuda"]
+default = []
+cuda = ["delta/cuda"]
 
 [dependencies]
 # external
 pyo3 = { workspace = true }
-
 # internal
-delta-tensor = { workspace = true }
+delta = { workspace = true }

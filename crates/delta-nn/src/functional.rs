@@ -1,19 +1,135 @@
-use delta::{FloatTensorRepr, Op, Tensor, TensorImpl, TensorRepr, f8};
+use delta_tensor::{FloatTensorRepr, Op, Tensor, TensorImpl, TensorRepr, f8};
 use half::{bf16, f16};
 
-pub fn relu<T: TensorRepr>(x: Tensor) -> Tensor {
-    let mut data = x.data();
-    for item in data.iter_mut() {
-        *item = if *item > T::zero() { *item } else { T::zero() }
-    }
-    let shape = x.shape();
-    let inner = TensorImpl::from_op(data, &shape, vec![x.clone()], Op::ReLU, x.device());
+pub fn relu(x: Tensor) -> Tensor {
+    let inner = match x.dtype() {
+        delta_tensor::DType::Float8 => {
+            let mut data = x.data::<f8>();
+            for item in data.iter_mut() {
+                *item = if *item > f8::zero() {
+                    *item
+                } else {
+                    f8::zero()
+                }
+            }
+            let shape = x.shape();
+            TensorImpl::from_op(data, &shape, vec![x.clone()], Op::ReLU, x.device())
+        }
+        delta_tensor::DType::Float16 => {
+            let mut data = x.data::<f16>();
+            for item in data.iter_mut() {
+                *item = if *item > f16::zero() {
+                    *item
+                } else {
+                    f16::zero()
+                }
+            }
+            let shape = x.shape();
+            TensorImpl::from_op(data, &shape, vec![x.clone()], Op::ReLU, x.device())
+        }
+        delta_tensor::DType::BFloat16 => {
+            let mut data = x.data::<bf16>();
+            for item in data.iter_mut() {
+                *item = if *item > bf16::zero() {
+                    *item
+                } else {
+                    bf16::zero()
+                }
+            }
+            let shape = x.shape();
+            TensorImpl::from_op(data, &shape, vec![x.clone()], Op::ReLU, x.device())
+        }
+        delta_tensor::DType::Float32 => {
+            let mut data = x.data::<f32>();
+            for item in data.iter_mut() {
+                *item = if *item > f32::zero() {
+                    *item
+                } else {
+                    f32::zero()
+                }
+            }
+            let shape = x.shape();
+            TensorImpl::from_op(data, &shape, vec![x.clone()], Op::ReLU, x.device())
+        }
+        delta_tensor::DType::Float64 => {
+            let mut data = x.data::<f64>();
+            for item in data.iter_mut() {
+                *item = if *item > f64::zero() {
+                    *item
+                } else {
+                    f64::zero()
+                }
+            }
+            let shape = x.shape();
+            TensorImpl::from_op(data, &shape, vec![x.clone()], Op::ReLU, x.device())
+        }
+        delta_tensor::DType::Int8 => {
+            let mut data = x.data::<i8>();
+            for item in data.iter_mut() {
+                *item = if *item > i8::zero() {
+                    *item
+                } else {
+                    i8::zero()
+                }
+            }
+            let shape = x.shape();
+            TensorImpl::from_op(data, &shape, vec![x.clone()], Op::ReLU, x.device())
+        }
+        delta_tensor::DType::Int16 => {
+            let mut data = x.data::<i16>();
+            for item in data.iter_mut() {
+                *item = if *item > i16::zero() {
+                    *item
+                } else {
+                    i16::zero()
+                }
+            }
+            let shape = x.shape();
+            TensorImpl::from_op(data, &shape, vec![x.clone()], Op::ReLU, x.device())
+        }
+        delta_tensor::DType::Int32 => {
+            let mut data = x.data::<i32>();
+            for item in data.iter_mut() {
+                *item = if *item > i32::zero() {
+                    *item
+                } else {
+                    i32::zero()
+                }
+            }
+            let shape = x.shape();
+            TensorImpl::from_op(data, &shape, vec![x.clone()], Op::ReLU, x.device())
+        }
+        delta_tensor::DType::Int64 => {
+            let mut data = x.data::<i64>();
+            for item in data.iter_mut() {
+                *item = if *item > i64::zero() {
+                    *item
+                } else {
+                    i64::zero()
+                }
+            }
+            let shape = x.shape();
+            TensorImpl::from_op(data, &shape, vec![x.clone()], Op::ReLU, x.device())
+        }
+        delta_tensor::DType::Bool => {
+            let mut data = x.data::<bool>();
+            for item in data.iter_mut() {
+                *item = if *item > bool::zero() {
+                    *item
+                } else {
+                    bool::zero()
+                }
+            }
+            let shape = x.shape();
+            TensorImpl::from_op(data, &shape, vec![x.clone()], Op::ReLU, x.device())
+        }
+    };
     Tensor::new(inner)
 }
 
 pub fn sigmoid(x: Tensor) -> Tensor {
     let inner = match x.dtype() {
-        delta::float8 => {
+        delta_tensor::float8 => {
             let data = ((-x.clone()).exp() + f8::one()).pow(-1);
             TensorImpl::from_op(
                 data.data::<f8>(),
@@ -23,7 +139,7 @@ pub fn sigmoid(x: Tensor) -> Tensor {
                 x.device(),
             )
         }
-        delta::float16 => {
+        delta_tensor::float16 => {
             let data = ((-x.clone()).exp() + f16::one()).pow(-1);
             TensorImpl::from_op(
                 data.data::<f16>(),
@@ -33,7 +149,7 @@ pub fn sigmoid(x: Tensor) -> Tensor {
                 x.device(),
             )
         }
-        delta::bfloat16 => {
+        delta_tensor::bfloat16 => {
             let data = ((-x.clone()).exp() + bf16::one()).pow(-1);
             TensorImpl::from_op(
                 data.data::<bf16>(),
@@ -43,7 +159,7 @@ pub fn sigmoid(x: Tensor) -> Tensor {
                 x.device(),
             )
         }
-        delta::float32 => {
+        delta_tensor::float32 => {
             let data = ((-x.clone()).exp() + f32::one()).pow(-1);
             TensorImpl::from_op(
                 data.data::<f32>(),
@@ -53,7 +169,7 @@ pub fn sigmoid(x: Tensor) -> Tensor {
                 x.device(),
             )
         }
-        delta::float64 => {
+        delta_tensor::float64 => {
             let data = ((-x.clone()).exp() + f64::one()).pow(-1);
             TensorImpl::from_op(
                 data.data::<f64>(),
@@ -63,11 +179,11 @@ pub fn sigmoid(x: Tensor) -> Tensor {
                 x.device(),
             )
         }
-        delta::int8 => todo!(),
-        delta::int16 => todo!(),
-        delta::int32 => todo!(),
-        delta::int64 => todo!(),
-        delta::bool => todo!(),
+        delta_tensor::int8 => todo!(),
+        delta_tensor::int16 => todo!(),
+        delta_tensor::int32 => todo!(),
+        delta_tensor::int64 => todo!(),
+        delta_tensor::bool => todo!(),
     };
     Tensor::new(inner)
 }
@@ -90,10 +206,10 @@ pub fn softmax(x: Tensor, dim: isize) -> Tensor {
         "Softmax for dimensions other than the last one is not supported."
     );
     let inner = match x.dtype() {
-        delta::float8 => todo!(),
-        delta::float16 => todo!(),
-        delta::bfloat16 => todo!(),
-        delta::float32 => {
+        delta_tensor::float8 => todo!(),
+        delta_tensor::float16 => todo!(),
+        delta_tensor::bfloat16 => todo!(),
+        delta_tensor::float32 => {
             let mut result = vec![<f32 as TensorRepr>::zero(); x.length()];
             let data = x.data();
             // get batch dimensions if they exist
@@ -137,7 +253,7 @@ pub fn softmax(x: Tensor, dim: isize) -> Tensor {
                 x.device(),
             )
         }
-        delta::float64 => todo!(),
+        delta_tensor::float64 => todo!(),
         _ => unreachable!(),
     };
     Tensor::new(inner)
