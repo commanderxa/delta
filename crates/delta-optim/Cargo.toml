@@ -1,0 +1,16 @@
+[package]
+name = "delta-optim"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+readme = "README.md"
+repository.workspace = true
+license-file.workspace = true
+
+[dependencies]
+delta-tensor = { workspace = true }
+delta-nn = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,30 @@
+[package]
+name = "delta-tensor"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+readme = "README.md"
+repository.workspace = true
+license-file.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lints]
+workspace = true
+
+[features]
+cuda = ["dep:cudarc"]
+
+[dependencies]
+# external packages
+rand = { workspace = true }
+cudarc = { workspace = true, optional = true }
+half = { workspace = true }
+float8 = { workspace = true }
+num-traits = { workspace = true }
+
+[lib]
+name = "delta"
+path = "src/lib.rs"
+crate-type = ["rlib"]

@@ -1,0 +1,15 @@
+[package]
+name = "delta-nn"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+readme = "README.md"
+repository.workspace = true
+license-file.workspace = true
+
+[dependencies]
+delta-tensor = { workspace = true }
+
+half = { workspace = true }
+num-traits = { workspace = true }

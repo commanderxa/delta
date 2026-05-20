@@ -66,14 +66,43 @@ dependencies = [
 [[package]]
 name = "delta"
 version = "0.1.0"
+
+[[package]]
+name = "delta-core"
+version = "0.1.0"
 dependencies = [
- "cudarc",
- "delta-macros",
  "float8",
  "half",
  "num-traits",
+]
+
+[[package]]
+name = "delta-cpu"
+version = "0.1.0"
+dependencies = [
+ "delta-core",
+]
+
+[[package]]
+name = "delta-cuda"
+version = "0.1.0"
+dependencies = [
+ "cudarc",
+ "delta-core",
+ "delta-cpu",
+]
+
+[[package]]
+name = "delta-data"
+version = "0.1.0"
+dependencies = [
+ "delta-tensor",
  "rand 0.10.1",
 ]
+
+[[package]]
+name = "delta-func"
+version = "0.1.0"
 
 [[package]]
 name = "delta-macros"
@@ -85,11 +114,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "delta-nn"
+version = "0.1.0"
+dependencies = [
+ "delta-tensor",
+ "half",
+ "num-traits",
+]
+
+[[package]]
+name = "delta-optim"
+version = "0.1.0"
+dependencies = [
+ "delta-nn",
+ "delta-tensor",
+]
+
+[[package]]
 name = "delta-py"
 version = "0.1.0"
 dependencies = [
- "delta",
+ "delta-tensor",
  "pyo3",
+]
+
+[[package]]
+name = "delta-tensor"
+version = "0.1.0"
+dependencies = [
+ "cudarc",
+ "float8",
+ "half",
+ "num-traits",
+ "rand 0.10.1",
 ]
 
 [[package]]
@@ -97,6 +154,13 @@ name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
+
+[[package]]
+name = "examples-nn"
+version = "0.1.0"
+dependencies = [
+ "delta-tensor",
+]
 
 [[package]]
 name = "float8"

@@ -1,0 +1,15 @@
+[package]
+name = "examples-nn"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+readme.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[dependencies]
+delta-tensor = { workspace = true }
+
+[lints]
+workspace = true

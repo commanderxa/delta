@@ -1,0 +1,26 @@
+[package]
+name = "delta-py"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+readme = "README.md"
+repository.workspace = true
+license-file.workspace = true
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "delta_py"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[features]
+cuda = ["delta-tensor/cuda"]
+
+[dependencies]
+# external
+pyo3 = { workspace = true }
+
+# internal
+delta-tensor = { workspace = true }

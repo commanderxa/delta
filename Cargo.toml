@@ -1,5 +1,46 @@
 [workspace]
 
-members = ["delta", "delta-macros", "delta-py"]
+members = ["crates/*", "examples/nn"]
 
 resolver = "2"
+
+[workspace.package]
+name = "delta"
+# versions
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95.0"
+# info
+authors = ["commanderxa"]
+readme = "README.md"
+repository = "https://github.com/CommanderXA/delta"
+license-file = "LICENSE"
+
+[workspace.lints.clippy]
+
+[workspace.dependencies]
+# internal
+delta-core = { path = "./crates/delta-core", default-features = false }
+delta-tensor = { path = "./crates/delta-tensor", default-features = false }
+delta-cpu = { path = "./crates/delta-cpu", default-features = false }
+delta-cuda = { path = "./crates/delta-cuda", default-features = false }
+delta-nn = { path = "./crates/delta-nn", default-features = false }
+delta-func = { path = "./crates/delta-func", default-features = false }
+delta-optim = { path = "./crates/delta-optim", default-features = false }
+delta-data = { path = "./crates/delta-data", default-features = false }
+delta-py = { path = "./crates/delta-py", default-features = false }
+delta-macros = { path = "./crates/delta-macros", default-features = false }
+
+# external
+rand = { version = "0.10.1" }
+cudarc = { version = "0.19", features = [
+    "cublas",
+    "cuda-version-from-build-system",
+    "f8",
+    "f16",
+] }
+half = { version = "2.7.1", features = ["alloc", "num-traits"] }
+float8 = { version = "0.7.0", features = ["num-traits"] }
+num-traits = { version = "0.2.19", default-features = false }
+
+pyo3 = { version = "0.28.2" }
