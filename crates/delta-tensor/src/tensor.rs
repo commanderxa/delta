@@ -492,13 +492,14 @@ impl Tensor {
             new_shape.len()
         );
         let t = self.clone();
+        let strides = t.stride();
         let mut _old_shape = self.shape();
         // check if batch dims have to be added in th front
         let dims_to_add = new_shape.len() - _old_shape.len();
         let mut old_shape: Vec<usize> = vec![1; dims_to_add];
         // push neccessary front batch dims
         for _ in 0..dims_to_add {
-            t.inner.borrow_mut().stride.insert(0, t.stride()[0]);
+            t.inner.borrow_mut().stride.insert(0, strides[0]);
         }
         // append the rest of the shape
         old_shape.append(&mut _old_shape);

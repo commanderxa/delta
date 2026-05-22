@@ -1,4 +1,6 @@
-use crate::{Tensor, TensorImpl, op::Op, promote_tensors, tensor::repr::TensorRepr};
+use half::{bf16, f16};
+
+use crate::{Tensor, TensorImpl, f8, op::Op, promote_tensors, tensor::repr::TensorRepr};
 
 /// Cross Product
 ///
@@ -45,9 +47,60 @@ pub fn cross(a: Tensor, b: Tensor) -> Tensor {
     }
 
     let inner = match a.dtype() {
-        crate::DType::Float8 => todo!(),
-        crate::DType::Float16 => todo!(),
-        crate::DType::BFloat16 => todo!(),
+        crate::DType::Float8 => {
+            // get data of the Tensors
+            let _a = a.data::<f8>();
+            let _b = b.data::<f8>();
+            // result init
+            let mut result = vec![<f8 as TensorRepr>::zero(); a.length()];
+            let mut i: usize = 0;
+            while i < (a.length() - 2) {
+                result[i] = (_a[i + 1] * _b[i + 2]) - (_a[i + 2] * _b[i + 1]);
+                result[i + 1] = (_a[i + 2] * _b[i]) - (_a[i] * _b[i + 2]);
+                result[i + 2] = (_a[i] * _b[i + 1]) - (_a[i + 1] * _b[i]);
+                i += 3;
+            }
+            let shape = a.shape();
+            // computation
+            // construct a Tensor
+            TensorImpl::from_op(result, &shape, vec![a, b], Op::Cross, device)
+        },
+        crate::DType::Float16 => {
+            // get data of the Tensors
+            let _a = a.data::<f16>();
+            let _b = b.data::<f16>();
+            // result init
+            let mut result = vec![<f16 as TensorRepr>::zero(); a.length()];
+            let mut i: usize = 0;
+            while i < (a.length() - 2) {
+                result[i] = (_a[i + 1] * _b[i + 2]) - (_a[i + 2] * _b[i + 1]);
+                result[i + 1] = (_a[i + 2] * _b[i]) - (_a[i] * _b[i + 2]);
+                result[i + 2] = (_a[i] * _b[i + 1]) - (_a[i + 1] * _b[i]);
+                i += 3;
+            }
+            let shape = a.shape();
+            // computation
+            // construct a Tensor
+            TensorImpl::from_op(result, &shape, vec![a, b], Op::Cross, device)
+        },
+        crate::DType::BFloat16 => {
+            // get data of the Tensors
+            let _a = a.data::<bf16>();
+            let _b = b.data::<bf16>();
+            // result init
+            let mut result = vec![<bf16 as TensorRepr>::zero(); a.length()];
+            let mut i: usize = 0;
+            while i < (a.length() - 2) {
+                result[i] = (_a[i + 1] * _b[i + 2]) - (_a[i + 2] * _b[i + 1]);
+                result[i + 1] = (_a[i + 2] * _b[i]) - (_a[i] * _b[i + 2]);
+                result[i + 2] = (_a[i] * _b[i + 1]) - (_a[i + 1] * _b[i]);
+                i += 3;
+            }
+            let shape = a.shape();
+            // computation
+            // construct a Tensor
+            TensorImpl::from_op(result, &shape, vec![a, b], Op::Cross, device)
+        },
         crate::DType::Float32 => {
             // get data of the Tensors
             let _a = a.data::<f32>();
@@ -66,12 +119,97 @@ pub fn cross(a: Tensor, b: Tensor) -> Tensor {
             // construct a Tensor
             TensorImpl::from_op(result, &shape, vec![a, b], Op::Cross, device)
         }
-        crate::DType::Float64 => todo!(),
-        crate::DType::Int8 => todo!(),
-        crate::DType::Int16 => todo!(),
-        crate::DType::Int32 => todo!(),
-        crate::DType::Int64 => todo!(),
-        crate::DType::Bool => todo!(),
+        crate::DType::Float64 => {
+            // get data of the Tensors
+            let _a = a.data::<f64>();
+            let _b = b.data::<f64>();
+            // result init
+            let mut result = vec![<f64 as TensorRepr>::zero(); a.length()];
+            let mut i: usize = 0;
+            while i < (a.length() - 2) {
+                result[i] = (_a[i + 1] * _b[i + 2]) - (_a[i + 2] * _b[i + 1]);
+                result[i + 1] = (_a[i + 2] * _b[i]) - (_a[i] * _b[i + 2]);
+                result[i + 2] = (_a[i] * _b[i + 1]) - (_a[i + 1] * _b[i]);
+                i += 3;
+            }
+            let shape = a.shape();
+            // computation
+            // construct a Tensor
+            TensorImpl::from_op(result, &shape, vec![a, b], Op::Cross, device)
+        },
+        crate::DType::Int8 => {
+            // get data of the Tensors
+            let _a = a.data::<i8>();
+            let _b = b.data::<i8>();
+            // result init
+            let mut result = vec![<i8 as TensorRepr>::zero(); a.length()];
+            let mut i: usize = 0;
+            while i < (a.length() - 2) {
+                result[i] = (_a[i + 1] * _b[i + 2]) - (_a[i + 2] * _b[i + 1]);
+                result[i + 1] = (_a[i + 2] * _b[i]) - (_a[i] * _b[i + 2]);
+                result[i + 2] = (_a[i] * _b[i + 1]) - (_a[i + 1] * _b[i]);
+                i += 3;
+            }
+            let shape = a.shape();
+            // computation
+            // construct a Tensor
+            TensorImpl::from_op(result, &shape, vec![a, b], Op::Cross, device)
+        },
+        crate::DType::Int16 => {
+            // get data of the Tensors
+            let _a = a.data::<i16>();
+            let _b = b.data::<i16>();
+            // result init
+            let mut result = vec![<i16 as TensorRepr>::zero(); a.length()];
+            let mut i: usize = 0;
+            while i < (a.length() - 2) {
+                result[i] = (_a[i + 1] * _b[i + 2]) - (_a[i + 2] * _b[i + 1]);
+                result[i + 1] = (_a[i + 2] * _b[i]) - (_a[i] * _b[i + 2]);
+                result[i + 2] = (_a[i] * _b[i + 1]) - (_a[i + 1] * _b[i]);
+                i += 3;
+            }
+            let shape = a.shape();
+            // computation
+            // construct a Tensor
+            TensorImpl::from_op(result, &shape, vec![a, b], Op::Cross, device)
+        },
+        crate::DType::Int32 => {
+            // get data of the Tensors
+            let _a = a.data::<i32>();
+            let _b = b.data::<i32>();
+            // result init
+            let mut result = vec![<i32 as TensorRepr>::zero(); a.length()];
+            let mut i: usize = 0;
+            while i < (a.length() - 2) {
+                result[i] = (_a[i + 1] * _b[i + 2]) - (_a[i + 2] * _b[i + 1]);
+                result[i + 1] = (_a[i + 2] * _b[i]) - (_a[i] * _b[i + 2]);
+                result[i + 2] = (_a[i] * _b[i + 1]) - (_a[i + 1] * _b[i]);
+                i += 3;
+            }
+            let shape = a.shape();
+            // computation
+            // construct a Tensor
+            TensorImpl::from_op(result, &shape, vec![a, b], Op::Cross, device)
+        },
+        crate::DType::Int64 => {
+            // get data of the Tensors
+            let _a = a.data::<i64>();
+            let _b = b.data::<i64>();
+            // result init
+            let mut result = vec![<i64 as TensorRepr>::zero(); a.length()];
+            let mut i: usize = 0;
+            while i < (a.length() - 2) {
+                result[i] = (_a[i + 1] * _b[i + 2]) - (_a[i + 2] * _b[i + 1]);
+                result[i + 1] = (_a[i + 2] * _b[i]) - (_a[i] * _b[i + 2]);
+                result[i + 2] = (_a[i] * _b[i + 1]) - (_a[i + 1] * _b[i]);
+                i += 3;
+            }
+            let shape = a.shape();
+            // computation
+            // construct a Tensor
+            TensorImpl::from_op(result, &shape, vec![a, b], Op::Cross, device)
+        },
+        crate::DType::Bool => panic!("Operation `cross` is not supported for Boolean tensors."),
     };
     Tensor::new(inner)
 }
