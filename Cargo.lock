@@ -87,6 +87,8 @@ name = "delta-cpu"
 version = "0.1.0"
 dependencies = [
  "delta-core",
+ "float8",
+ "half",
 ]
 
 [[package]]

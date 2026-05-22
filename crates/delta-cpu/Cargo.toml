@@ -10,6 +10,8 @@ license-file.workspace = true
 
 [dependencies]
 delta-core = { workspace = true }
+float8 = { workspace = true }
+half = { workspace = true }
 
 [lints]
 workspace = true

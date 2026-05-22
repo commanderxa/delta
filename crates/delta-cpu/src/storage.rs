@@ -1,4 +1,7 @@
-use delta_core::cast::Cast;
+use delta_core::{cast::Cast, dtype::DType, f8};
+use half::{bf16, f16};
+
+use crate::repr::StorageRepr;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum CPUStorage {
@@ -27,22 +30,6 @@ impl CPUStorage {
             CPUStorage::I32(v) => v.fill(Cast::<i32>::cast(value)),
             CPUStorage::I64(v) => v.fill(Cast::<i64>::cast(value)),
             CPUStorage::Bool(v) => v.fill(Cast::<bool>::cast(value)),
-        }
-    }
-
-    #[cfg(feature = "cuda")]
-    pub fn to_cuda(&self) -> CUDAStorage {
-        match self {
-            CPUStorage::I8(v) => CUDAStorage::I8(array_to_cuda_slice(v)),
-            CPUStorage::I16(v) => CUDAStorage::I16(array_to_cuda_slice(v)),
-            CPUStorage::I32(v) => CUDAStorage::I32(array_to_cuda_slice(v)),
-            CPUStorage::I64(v) => CUDAStorage::I64(array_to_cuda_slice(v)),
-            CPUStorage::F8(v) => CUDAStorage::F8(array_to_cuda_slice(v)),
-            CPUStorage::F16(v) => CUDAStorage::F16(array_to_cuda_slice(v)),
-            CPUStorage::BF16(v) => CUDAStorage::BF16(array_to_cuda_slice(v)),
-            CPUStorage::F32(v) => CUDAStorage::F32(array_to_cuda_slice(v)),
-            CPUStorage::F64(v) => CUDAStorage::F64(array_to_cuda_slice(v)),
-            CPUStorage::Bool(v) => CUDAStorage::Bool(array_to_cuda_slice(v)),
         }
     }
 
