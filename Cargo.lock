@@ -80,6 +80,7 @@ dependencies = [
  "float8",
  "half",
  "num-traits",
+ "rand 0.10.1",
 ]
 
 [[package]]
@@ -98,6 +99,8 @@ dependencies = [
  "cudarc",
  "delta-core",
  "delta-cpu",
+ "float8",
+ "half",
 ]
 
 [[package]]
@@ -107,10 +110,6 @@ dependencies = [
  "delta-tensor",
  "rand 0.10.1",
 ]
-
-[[package]]
-name = "delta-func"
-version = "0.1.0"
 
 [[package]]
 name = "delta-macros"
@@ -151,6 +150,7 @@ name = "delta-tensor"
 version = "0.1.0"
 dependencies = [
  "cudarc",
+ "delta-core",
  "float8",
  "half",
  "num-traits",

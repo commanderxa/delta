@@ -9,9 +9,13 @@ repository.workspace = true
 license-file.workspace = true
 
 [dependencies]
-cudarc = { workspace = true }
+# internal crates
 delta-core = { workspace = true }
 delta-cpu = { workspace = true }
+# external crates
+cudarc = { workspace = true }
+float8 = { workspace = true }
+half = { workspace = true }
 
 [lints]
 workspace = true

@@ -1,15 +1,11 @@
 #[cfg(feature = "cuda")]
 use crate::cuda::{array_to_cuda_slice, cuda_slice_to_array};
-use crate::{
-    DType, f8,
-    tensor::{
-        cast::{Cast, CastFrom},
-        repr::TensorRepr,
-    },
-};
+use crate::{DType, f8, tensor::repr::TensorRepr};
 #[cfg(feature = "cuda")]
-use cudarc::driver::CudaSlice;
+use delta_core::cast::{Cast, CastFrom};
 use half::{bf16, f16};
+
+use cudarc::driver::CudaSlice;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum CPUStorage {

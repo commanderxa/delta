@@ -1,16 +1,40 @@
 use std::fmt::{Debug, Display};
 use std::ops::Range;
 
-#[cfg(feature = "cuda")]
-use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
 use half::{bf16, f16};
 use num_traits::{Float, ToPrimitive};
 
-use delta_core::cast::Cast;
-use crate::tensor::storage_impl::StorageRepr;
-use crate::{DType, f8};
+use crate::cast::{Cast, CastFrom};
+use crate::dtype::DType;
+use crate::f8;
 
-#[cfg(not(feature = "cuda"))]
+// pub trait StorageRepr:
+//     Sized
+//     + Copy
+//     + Clone
+//     + CastFrom<i8>
+//     + CastFrom<i16>
+//     + CastFrom<i32>
+//     + CastFrom<i64>
+//     + CastFrom<f8>
+//     + CastFrom<f16>
+//     + CastFrom<bf16>
+//     + CastFrom<f32>
+//     + CastFrom<f64>
+//     + CastFrom<bool>
+//     + CastFrom<Self> {
+//     const DTYPE: DType;
+
+//     // Storage construction
+//     fn into_storage(data: &[Self]) -> CPUStorage;
+//     // Storage access
+//     fn storage_as_slice(s: &CPUStorage) -> Option<&[Self]>;
+//     fn storage_as_slice_mut(s: &mut CPUStorage) -> Option<&mut [Self]>;
+//     // function for other storage types
+//     fn from_cpu_storage(storage: &CPUStorage) -> CUDAStorage;
+//     fn into_cpu_storage(storage: &CUDAStorage) -> CPUStorage;
+// }
+
 pub trait TensorRepr:
     'static
     + Copy
@@ -31,39 +55,19 @@ pub trait TensorRepr:
     + Cast<i16>
     + Cast<i32>
     + Cast<i64>
-    + StorageRepr
+    + CastFrom<i8>
+    + CastFrom<i16>
+    + CastFrom<i32>
+    + CastFrom<i64>
+    + CastFrom<f8>
+    + CastFrom<f16>
+    + CastFrom<bf16>
+    + CastFrom<f32>
+    + CastFrom<f64>
+    + CastFrom<bool>
+    + CastFrom<Self>
 {
-    fn dtype() -> DType;
-    fn zero() -> Self;
-    fn one() -> Self;
-    fn max() -> Self;
-}
-
-#[cfg(feature = "cuda")]
-pub trait TensorRepr:
-    'static
-    + Copy
-    + Clone
-    + Debug
-    + Display
-    + PartialEq
-    + PartialOrd
-    + Sized
-    + Cast<Self>
-    + Cast<bool>
-    + Cast<f8>
-    + Cast<f16>
-    + Cast<bf16>
-    + Cast<f32>
-    + Cast<f64>
-    + Cast<i8>
-    + Cast<i16>
-    + Cast<i32>
-    + Cast<i64>
-    + StorageRepr
-    + DeviceRepr
-    + ValidAsZeroBits
-{
+    const DTYPE: DType;
     fn dtype() -> DType;
     fn zero() -> Self;
     fn one() -> Self;
@@ -73,6 +77,8 @@ pub trait TensorRepr:
 macro_rules! impl_tensor_element {
     ($ty:ty, $dtype:expr, $zero:expr, $one:expr, $max:expr) => {
         impl TensorRepr for $ty {
+            const DTYPE: DType = $dtype;
+
             fn dtype() -> DType {
                 $dtype
             }

@@ -26,7 +26,6 @@ delta-tensor = { path = "./crates/delta-tensor", default-features = false }
 delta-cpu = { path = "./crates/delta-cpu", default-features = false }
 delta-cuda = { path = "./crates/delta-cuda", default-features = false }
 delta-nn = { path = "./crates/delta-nn", default-features = false }
-delta-func = { path = "./crates/delta-func", default-features = false }
 delta-optim = { path = "./crates/delta-optim", default-features = false }
 delta-data = { path = "./crates/delta-data", default-features = false }
 delta-py = { path = "./crates/delta-py", default-features = false }

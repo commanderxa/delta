@@ -1,11 +1,12 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
+use delta_core::cast::Cast;
 use half::{bf16, f16};
 
 use crate::{
     Storage, Tensor, f8,
     op::Op,
-    tensor::{cast::Cast, repr::NumTensorRepr},
+    tensor::{repr::NumTensorRepr},
 };
 
 impl Add for Tensor {

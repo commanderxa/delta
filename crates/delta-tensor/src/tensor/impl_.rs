@@ -2,7 +2,7 @@
 use cudarc::driver::CudaSlice;
 use half::{bf16, f16};
 
-use crate::{DType, Storage, Tensor, device::Device, f8, op::Op, tensor::repr::TensorRepr};
+use crate::{DType, Op, Storage, Tensor, device::Device, f8, tensor::repr::TensorRepr};
 
 #[derive(Clone, Debug)]
 /// # TensorImpl

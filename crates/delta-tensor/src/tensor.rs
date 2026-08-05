@@ -5,6 +5,7 @@ pub(crate) mod impl_;
 mod slice_index;
 #[macro_use]
 pub mod init;
+pub mod meta;
 pub mod operations;
 #[macro_use]
 pub(crate) mod promote;
@@ -24,24 +25,27 @@ use crate::{
     f8,
     op::Op,
     tensor::{
-        cast::Cast,
         impl_::TensorImpl,
+        meta::TensorMetaData,
         repr::{FloatTensorRepr, TensorRepr},
         slice_index::{SliceIndex, SliceIndexArg, SliceIndexEnum},
         storage_impl::CPUStorage,
     },
 };
 
+use delta_core::cast::Cast;
+
 type TensorImplRef = Rc<RefCell<TensorImpl>>;
 
 #[derive(Clone, Debug)]
 /// # Tensor
 ///
-/// ### Holds the reference to the inner data inside.
+/// Holds the reference to the inner data inside.
 ///
 /// See the documentation for `TensorImpl`.
 pub struct Tensor {
     pub(crate) inner: TensorImplRef,
+    // pub(crate) meta: TensorMetaData,
 }
 
 impl Tensor {
@@ -92,6 +96,16 @@ impl Tensor {
         let values: Vec<T> = (0..len).map(|_| T::random_range(range.clone())).collect();
         tensor.data.replace_data(&values);
         tensor.grad = Some(crate::create_grad::<T>(&tensor.shape, tensor.device()));
+    }
+
+    pub(crate) fn from_op<T: TensorRepr>(
+        data: Vec<T>,
+        shape: &[usize],
+        prev: Vec<Tensor>,
+        op: Op,
+        device: Device,
+    ) -> Self {
+        Self::new(TensorImpl::from_op(data, shape, prev, op, device))
     }
 
     /// Returns an owned copy of tensor strides
@@ -445,14 +459,17 @@ impl Tensor {
             "Dimension out of range (expected range of [0, {}])",
             self.shape().len()
         );
-        let t = self.clone();
-        t.shape().insert(dim, 1);
+        let mut t = self.inner.borrow().clone();
+        let data = t.data;
+        let mut shape = t.shape;
+        let mut strides = t.stride;
+        shape.insert(dim, 1);
         let mut replica = 1;
         if dim < self.shape().len() {
-            replica = t.stride()[dim];
+            replica = t.stride[dim];
         }
-        t.inner.borrow_mut().stride.insert(dim, replica);
-        t
+        strides.insert(dim, replica);
+        Tensor::from_op(data, &shape, vec![self], Op::Unsqueeze, self.device())
     }
 
     /// Returns a tensor with all specified dimensions of shape of size 1 removed.

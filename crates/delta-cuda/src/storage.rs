@@ -1,3 +1,10 @@
+use cudarc::driver::CudaSlice;
+use delta_core::{dtype::DType, f8};
+use delta_cpu::storage::CPUStorage;
+use half::{bf16, f16};
+
+use crate::{cuda_slice_to_array, repr::CUDAStorageRepr};
+
 #[derive(Clone, Debug)]
 pub enum CUDAStorage {
     I8(CudaSlice<i8>),
@@ -32,7 +39,7 @@ impl CUDAStorage {
         }
     }
 
-    pub fn cast_to<U: StorageRepr>(&self) -> CUDAStorage {
+    pub fn cast_to<U: CUDAStorageRepr>(&self) -> CUDAStorage {
         match self {
             CUDAStorage::F8(v) => U::into_cuda_storage(
                 &cuda_slice_to_array(v)

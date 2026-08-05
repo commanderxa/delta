@@ -1,4 +1,6 @@
-use crate::{Tensor, linalg, op::Op, tensor::cast::Cast};
+use crate::{Tensor, linalg, op::Op};
+
+use delta_core::cast::Cast;
 
 /// Backward trait for backpropagation operation.
 pub trait Backward {

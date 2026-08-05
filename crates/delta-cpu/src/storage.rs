@@ -1,7 +1,7 @@
-use delta_core::{cast::Cast, dtype::DType, f8};
+use delta_core::{cast::Cast, dtype::DType, f8, repr::TensorRepr};
 use half::{bf16, f16};
 
-use crate::repr::StorageRepr;
+use crate::repr::CPUStorageRepr;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum CPUStorage {
@@ -18,6 +18,22 @@ pub enum CPUStorage {
 }
 
 impl CPUStorage {
+
+    pub fn new<T: TensorRepr>(data: &[T]) -> Self {
+        match T::DTYPE {
+            DType::Float8 => CPUStorage::F8(data.iter().map(|x| (*x).cast()).collect()),
+            DType::Float16 => CPUStorage::F16(data.iter().map(|x| (*x).cast()).collect()),
+            DType::BFloat16 => CPUStorage::BF16(data.iter().map(|x| (*x).cast()).collect()),
+            DType::Float32 => CPUStorage::F32(data.iter().map(|x| (*x).cast()).collect()),
+            DType::Float64 => CPUStorage::F64(data.iter().map(|x| (*x).cast()).collect()),
+            DType::Int8 => CPUStorage::I8(data.iter().map(|x| (*x).cast()).collect()),
+            DType::Int16 => CPUStorage::I16(data.iter().map(|x| (*x).cast()).collect()),
+            DType::Int32 => CPUStorage::I32(data.iter().map(|x| (*x).cast()).collect()),
+            DType::Int64 => CPUStorage::I64(data.iter().map(|x| (*x).cast()).collect()),
+            DType::Bool => CPUStorage::Bool(data.iter().map(|x| (*x).cast()).collect()),
+        }
+    }
+
     pub fn fill<T: TensorRepr>(&mut self, value: T) {
         match self {
             CPUStorage::F8(v) => v.fill(Cast::<f8>::cast(value)),
@@ -33,37 +49,37 @@ impl CPUStorage {
         }
     }
 
-    pub fn cast_to<U: StorageRepr>(&self) -> CPUStorage {
+    pub fn cast_to<U: CPUStorageRepr>(&self) -> CPUStorage {
         match self {
             CPUStorage::F8(v) => {
-                U::into_cpu_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
+                U::into_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
             }
             CPUStorage::F16(v) => {
-                U::into_cpu_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
+                U::into_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
             }
             CPUStorage::BF16(v) => {
-                U::into_cpu_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
+                U::into_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
             }
             CPUStorage::F32(v) => {
-                U::into_cpu_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
+                U::into_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
             }
             CPUStorage::F64(v) => {
-                U::into_cpu_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
+                U::into_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
             }
             CPUStorage::I8(v) => {
-                U::into_cpu_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
+                U::into_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
             }
             CPUStorage::I16(v) => {
-                U::into_cpu_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
+                U::into_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
             }
             CPUStorage::I32(v) => {
-                U::into_cpu_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
+                U::into_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
             }
             CPUStorage::I64(v) => {
-                U::into_cpu_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
+                U::into_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
             }
             CPUStorage::Bool(v) => {
-                U::into_cpu_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
+                U::into_storage(&v.iter().map(|&x| U::cast_from(x)).collect::<Vec<_>>())
             }
         }
     }

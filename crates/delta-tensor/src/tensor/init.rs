@@ -1,10 +1,8 @@
-use half::{bf16, f16};
 use crate::f8;
+use delta_core::cast::Cast;
+use half::{bf16, f16};
 
-use crate::{
-    DType, Device, Tensor, TensorImpl, get_default_dtype,
-    tensor::{cast::Cast, repr::TensorRepr},
-};
+use crate::{DType, Device, Tensor, TensorImpl, get_default_dtype, tensor::repr::TensorRepr};
 
 /// Create a new tensor from the given data and the shape.
 pub fn tensor<T: TensorRepr>(data: &[T], shape: &[usize], device: Device) -> Tensor {

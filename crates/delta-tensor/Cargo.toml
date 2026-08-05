@@ -17,6 +17,9 @@ workspace = true
 cuda = ["dep:cudarc"]
 
 [dependencies]
+# internal packages
+delta-core = { workspace = true }
+
 # external packages
 rand = { workspace = true }
 cudarc = { workspace = true, optional = true }
